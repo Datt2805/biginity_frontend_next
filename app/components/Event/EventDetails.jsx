@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 import defaultPlaceholder from "@/public/logo.png";
+import { fetchUserDetail, hostSocket } from "@/lib/api";
+
+const userLoggedIn = await fetchUserDetail();
 
 export default function EventDetails({ event }) {
   return (
@@ -12,7 +15,7 @@ export default function EventDetails({ event }) {
       {/* Event Image */}
       <div className="mb-6">
         <Image
-          src={event.image || defaultPlaceholder}
+          src={event?.image ? `${hostSocket}${event.image}` : "./logo.png"}
           alt={event.title}
           width={800}
           height={400}
@@ -23,10 +26,19 @@ export default function EventDetails({ event }) {
       {/* Event Info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-gray-100 p-4 rounded-xl">
-          <p><strong>Mandatory:</strong> {event.mandatory ? "Yes" : "No"}</p>
-          <p><strong>Start:</strong> {new Date(event.start_time).toLocaleString()}</p>
-          <p><strong>End:</strong> {new Date(event.end_time).toLocaleString()}</p>
-          <p><strong>Location:</strong> {event.location?.address}</p>
+          <p>
+            <strong>Mandatory:</strong> {event.mandatory ? "Yes" : "No"}
+          </p>
+          <p>
+            <strong>Start:</strong>{" "}
+            {new Date(event.start_time).toLocaleString()}
+          </p>
+          <p>
+            <strong>End:</strong> {new Date(event.end_time).toLocaleString()}
+          </p>
+          <p>
+            <strong>Location:</strong> {event.location?.address}
+          </p>
         </div>
       </div>
 
@@ -50,29 +62,40 @@ export default function EventDetails({ event }) {
       </div>
 
       {/* Speakers */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Speakers</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {(event.speakers || []).map((speaker) => (
-            <div
-              key={speaker.id}
-              className="flex items-center gap-4 p-4 bg-white shadow rounded-xl"
-            >
-              <Image
-                src={speaker.profile || defaultPlaceholder}
-                alt={speaker.name}
-                width={80}
-                height={80}
-                className="rounded-full object-cover"
-              />
-              <div>
-                <p className="font-semibold">{speaker.name}</p>
-                <p className="text-sm text-gray-600">{speaker.organization}</p>
+      {/* button here to view speaker details */}
+      { !userLoggedIn ? (
+        <button className="bg-blue-600 rounded cursor-pointer  p-2 text-white hover:bg-blue-700" 
+          onClick={()=>window.location.replace("/LoginSignUp") }
+        > 
+          Log in to view Speaker Details
+        </button>
+      ) : (
+        <div>
+          <h2 className="text-2xl font-semibold mb-4">Speakers</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {(event.speakers || []).map((speaker) => (
+              <div
+                key={speaker.id}
+                className="flex items-center gap-4 p-4 bg-white shadow rounded-xl"
+              >
+                <Image
+                  src={speaker.profile || defaultPlaceholder}
+                  alt={speaker.name}
+                  width={80}
+                  height={80}
+                  className="rounded-full object-cover"
+                />
+                <div>
+                  <p className="font-semibold">{speaker.name}</p>
+                  <p className="text-sm text-gray-600">
+                    {speaker.organization}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

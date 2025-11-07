@@ -96,11 +96,9 @@ export default function EventsList() {
               date={{ year, month }}
               location={event?.location?.address || "Unknown"}
               img={
-                event?.image
-                  ? (String(event.image).startsWith("http")
-                      ? event.image
-                      : `${hostSocket}${event.image}`)
-                  : "/image.png"
+                 event?.image 
+                 ? `${hostSocket}${event.image}`  
+                 : "./logo.png" 
               }
             />
           );

@@ -7,7 +7,7 @@ import defaultPlaceholder from "@/public/logo.png";
 export default function EventCard({ id, title, date, location, img }) {
   return (
     <div className="w-full md:w-1/2 lg:w-1/3 p-4 mt-4">
-      <Link href={`/events/${id}`} className="block">
+      <Link href={`/events/detail?id=${id}`} className="block">
         <div className="bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-2xl transition-shadow duration-300">
           
           {/* IMAGE SECTION */}
