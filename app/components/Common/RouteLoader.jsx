@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import Loader from "./Loader";
+import Loader from "../Common/Loader";
 
 export default function RouteLoader({ children }) {
   const [loading, setLoading] = useState(false);

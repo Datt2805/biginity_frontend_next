@@ -1,6 +1,6 @@
 // app/teacher/page.jsx
 import React from 'react';
-import TeacherDashboard from '../components/Teacher/TeacherDashboard';
+import StudentDashboard from '../components/Student/StudentDashboard';
 
 // Set up metadata if needed
 export const metadata = {
@@ -10,7 +10,9 @@ export const metadata = {
 // This is the main page component for the /teacher route
 const TeacherPage = () => {
   return (
-    <TeacherDashboard />
+    // Note: Since TeacherDashboard uses client-side hooks and components 
+    // like ToastContainer, it must be marked as 'use client' internally.
+    <StudentDashboard />
   );
 };
 

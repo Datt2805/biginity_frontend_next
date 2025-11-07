@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import EventDetails from "@/app/components/Event/EventDetails";
 import { makeRequest, hostSocket } from "@/lib/api";
-import Loader from "@/app/components/Loader/Loader";
+import Loader from "@/app/components/Common/Loader";
 
 export default function EventDetailPage() {
   const params = useParams();

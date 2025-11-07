@@ -1,3 +1,4 @@
+
 import EventsList from "@/app/components/Event/EventsList";
 
 export default function EventsPage() {

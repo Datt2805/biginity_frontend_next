@@ -7,19 +7,19 @@ const PasswordInput = ({ value, onChange }) => {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="flex items-center bg-gray-200 rounded-lg">
-      <MdLockOutline className="text-gray-400 m-2" />
+    <div className="flex items-center bg-gray-100 border border-gray-200 rounded-xl focus-within:ring-2 focus-within:ring-green-400 shadow-sm transition-all duration-200">
+      <MdLockOutline className="text-gray-400 mx-3 text-lg" />
       <input
         type={showPassword ? "text" : "password"}
         name="password"
         placeholder="Password"
         value={value}
         onChange={onChange}
-        className="bg-gray-200 outline-none text-sm w-full"
+        className="bg-transparent outline-none text-sm w-full p-2 text-gray-700 placeholder-gray-400"
       />
       <div
         onClick={() => setShowPassword(!showPassword)}
-        className="cursor-pointer pr-2"
+        className="cursor-pointer pr-3 text-gray-500 hover:text-green-500 transition-colors"
       >
         {showPassword ? <FaEyeSlash /> : <FaEye />}
       </div>
