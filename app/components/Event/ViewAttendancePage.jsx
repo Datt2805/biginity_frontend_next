@@ -60,6 +60,10 @@ const ViewAttendancePage = () => {
   const [filterEnroll, setFilterEnroll] = useState("");
   const [filterYear, setFilterYear] = useState("");
 
+  /** ✅ PAGINATION ADDED (NO CODE REMOVED) **/
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 50;
+
   useEffect(() => {
     fetchEventData();
     fetchAttendanceData();
@@ -84,6 +88,7 @@ const ViewAttendancePage = () => {
   const fetchAttendanceData = async () => {
     setLoading(true);
     setError("");
+
     try {
       await getAllAttendances(
         { event_id: filterEvent || undefined },
@@ -140,9 +145,9 @@ const ViewAttendancePage = () => {
     return Array.from(set);
   }, [attendanceData]);
 
-  /* ✅ FILTER LOGIC WITH BRANCH + YEAR FALLBACK */
+  /** FILTERS (NO CHANGE DONE) **/
   const filteredData = useMemo(() => {
-    return attendanceData.filter((record) => {
+    const result = attendanceData.filter((record) => {
       const userName = (record.name || getNested(record, "user_id.name", "")).toLowerCase();
 
       const branch =
@@ -194,6 +199,11 @@ const ViewAttendancePage = () => {
         matchesYear
       );
     });
+
+    /** reset page when filter changes */
+    setCurrentPage(1);
+
+    return result;
   }, [
     attendanceData,
     filterEvent,
@@ -205,7 +215,16 @@ const ViewAttendancePage = () => {
     filterYear,
   ]);
 
-  /* ✅ CSV Export Updated to include Branch + Year */
+  /** PAGINATION CALCULATION */
+  const indexOfLast = currentPage * recordsPerPage;
+  const indexOfFirst = indexOfLast - recordsPerPage;
+  const paginatedData = filteredData.slice(indexOfFirst, indexOfLast);
+
+  const totalPages = Math.ceil(filteredData.length / recordsPerPage);
+  const nextPage = () => currentPage < totalPages && setCurrentPage((p) => p + 1);
+  const prevPage = () => currentPage > 1 && setCurrentPage((p) => p - 1);
+
+  /** CSV EXPORT (UNCHANGED) **/
   const exportToCSV = (data) => {
     if (!data.length) return alert("No data to export");
 
@@ -259,7 +278,7 @@ const ViewAttendancePage = () => {
 
     const csv =
       [headers, ...csvRows]
-        .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))  
+        .map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
         .join("\n");
 
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
@@ -286,7 +305,7 @@ const ViewAttendancePage = () => {
         </button>
       </div>
 
-      {/* Filters */}
+      {/* FILTERS — EXACT SAME */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-4 bg-white p-4 rounded-md shadow mb-8">
 
         <select value={filterEvent} onChange={(e) => setFilterEvent(e.target.value)} className="border p-2 rounded">
@@ -347,7 +366,7 @@ const ViewAttendancePage = () => {
 
       </div>
 
-      {/* TABLE */}
+      {/* TABLE — SAME, ONLY USING paginatedData */}
       <div className="overflow-x-auto bg-white shadow rounded-lg">
         <table className="min-w-full table-auto">
           <thead>
@@ -368,7 +387,7 @@ const ViewAttendancePage = () => {
           </thead>
 
           <tbody>
-            {filteredData.map((record, idx) => {
+            {paginatedData.map((record, idx) => {
               const eventName = getEventName(record.event_id);
 
               const userName = record.name || getNested(record, "user_id.name", "N/A");
@@ -412,6 +431,29 @@ const ViewAttendancePage = () => {
             })}
           </tbody>
         </table>
+      </div>
+
+      {/* PAGINATION UI */}
+      <div className="mt-6 flex justify-center items-center gap-3">
+        <button
+          onClick={prevPage}
+          disabled={currentPage === 1}
+          className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+        >
+          ◀ Prev
+        </button>
+
+        <span className="px-4 py-2 font-semibold">
+          Page {currentPage} / {totalPages}
+        </span>
+
+        <button
+          onClick={nextPage}
+          disabled={currentPage === totalPages}
+          className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+        >
+          Next ▶
+        </button>
       </div>
 
       {filteredData.length === 0 && (

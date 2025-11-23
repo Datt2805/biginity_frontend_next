@@ -19,57 +19,53 @@ const Classroom = () => {
     JSON.parse(localStorage.getItem("attendanceTimers")) || {}
   );
 
+  // Load timers initially
   useEffect(() => {
     const saved = JSON.parse(localStorage.getItem("attendanceTimers")) || {};
     setAttendanceTimers(saved);
   }, []);
 
-  // Prevent leaving during active attendance
+  // Block leaving page during attendance
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       if (Object.keys(attendanceTimers).length > 0) {
         event.preventDefault();
         event.returnValue =
-          "Attendance is still running. Are you sure you want to leave?";
+          "Attendance is still active. Are you sure you want to leave?";
       }
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    return () =>
+      window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [attendanceTimers]);
 
-  // ✅ Auto-stop attendance when time ends
+  // Auto stop attendance
   useEffect(() => {
     const interval = setInterval(() => {
       if (!socketActions) return;
-
-      const now = Date.now(); 
+      const now = Date.now();
 
       Object.entries(attendanceTimers).forEach(([classroomId, endTime]) => {
         if (now >= endTime) {
-          // ✅ Stop attendance
           socketActions.stopAttendance(classroomId);
-          toast.info(`Attendance automatically stopped for ${classroomId}`);
+          toast.info(`Attendance automatically stopped.`);
 
-          // ✅ Remove timer
           const updated = { ...attendanceTimers };
           delete updated[classroomId];
-
           setAttendanceTimers(updated);
           localStorage.setItem("attendanceTimers", JSON.stringify(updated));
         }
       });
     }, 1000);
-
     return () => clearInterval(interval);
   }, [attendanceTimers, socketActions]);
 
-  // Load classrooms
   const loadClassrooms = async () => {
     try {
       setLoading(true);
       const data = await getClassrooms();
-      setClassrooms(data);
+      if (data?.length) setClassrooms(data);
+      else setClassrooms(data?.classrooms || []);
     } catch (err) {
       setError(err.message || "Failed to load classrooms");
     } finally {
@@ -77,70 +73,43 @@ const Classroom = () => {
     }
   };
 
-  // Init socket
   useEffect(() => {
     loadClassrooms();
-
     const actions = new initSocket({
       newMessageCallback: (data) => console.log("New message:", data),
-      connectionCallback: () => console.log("Connected to socket"),
-      successCallback: (data) => console.log("Socket success:", data),
-      errorCallback: (err) => console.error("Socket error:", err),
-      attendanceStartedCallback: (data) =>
-        toast.success(`Attendance started for ${data.classroom_id || ""}`),
+      attendanceStartedCallback: () =>
+        toast.success(`Attendance started for classroom.`),
       punchInCallback: () => toast.info("Punch-In recorded."),
       punchOutCallback: () => toast.info("Punch-Out recorded."),
     });
 
     setSocketActions(actions);
-
-    return () => {
-      actions.socket.disconnect();
-    };
+    return () => actions.socket.disconnect();
   }, []);
 
   const handleStartAttendance = (classroomId) => {
-    if (!socketActions) return toast.error("Socket not initialized yet!");
-
-    socketActions.startAttendance(classroomId, 10); // ✅ 10 minutes
+    socketActions.startAttendance(classroomId, 10);
     toast.success("Attendance started for 10 minutes!");
 
     const endTime = Date.now() + 10 * 60000;
-    const updatedTimers = { ...attendanceTimers, [classroomId]: endTime };
-
-    setAttendanceTimers(updatedTimers);
-    localStorage.setItem("attendanceTimers", JSON.stringify(updatedTimers));
+    const updated = { ...attendanceTimers, [classroomId]: endTime };
+    setAttendanceTimers(updated);
+    localStorage.setItem("attendanceTimers", JSON.stringify(updated));
   };
 
-  // Punch In
-  const handlePunchIn = (classroomId) => {
-    if (!socketActions) return;
-
+  const handlePunch = (type, classroomId) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        socketActions.punchIn({
+        socketActions[type]({
           classroom_id: classroomId,
-          location: { lat: pos.coords.latitude, long: pos.coords.longitude },
+          location: {
+            lat: pos.coords.latitude,
+            long: pos.coords.longitude,
+          },
         });
-        toast.success("Punch-In successful!");
+        toast.success(`${type === "punchIn" ? "Punch-In" : "Punch-Out"} successful!`);
       },
-      () => toast.error("Location not found")
-    );
-  };
-
-  // Punch Out
-  const handlePunchOut = (classroomId) => {
-    if (!socketActions) return;
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        socketActions.punchOut({
-          classroom_id: classroomId,
-          location: { lat: pos.coords.latitude, long: pos.coords.longitude },
-        });
-        toast.success("Punch-Out successful!");
-      },
-      () => toast.error("Location not found")
+      () => toast.error("Location access denied.")
     );
   };
 
@@ -148,78 +117,102 @@ const Classroom = () => {
   if (error) return <div className="text-red-600">{error}</div>;
 
   return (
-    <div className="bg-gray-50 min-h-screen px-6 py-8">
+    <div className="min-h-screen bg-gray-100 px-6 py-10">
       <ToastContainer />
-      <h2 className="text-3xl font-bold text-center mb-8">Classrooms</h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {classrooms.map((classroom) => (
-          <div
-            key={classroom._id}
-            className="bg-white border shadow-md rounded-2xl p-6"
-          >
-            <h3 className="text-xl font-semibold text-center">
-              {classroom.name}
-            </h3>
+      <h2 className="text-4xl font-extrabold text-gray-800 text-center mb-10 tracking-tight">
+        Classrooms
+      </h2>
 
-            <div className="flex flex-col gap-3 items-center mt-4">
-              {/* Chat Button */}
-              <button
-                onClick={() => {setOpenChat(classroom._id); setExistingMessages(classroom.discussion)}}
-                className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+        {classrooms.map((classroom) => {
+          const endTime = attendanceTimers[classroom._id];
+          const isActive = Boolean(endTime);
+
+          const timeLeft = Math.max(
+            0,
+            Math.ceil((endTime - Date.now()) / 1000)
+          );
+
+          return (
+            <div
+              key={classroom._id}
+              className={`relative bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all p-6 border border-gray-200 
+                ${isActive ? "ring-2 ring-green-500" : ""}`}
+            >
+
+              {/* STATUS BADGE */}
+              <span
+                className={`absolute top-3 right-3 px-3 py-1 text-xs rounded-full font-semibold
+                  ${isActive ? "bg-green-600 text-white" : "bg-gray-400 text-white"}`}
               >
-                Open Chat
-              </button>
+                {isActive ? "Attendance Active" : "Inactive"}
+              </span>
 
-              {/* Start Attendance */}
-              {userData.role === "Teacher" && <button
-                onClick={() => handleStartAttendance(classroom._id)}
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Start Attendance
-              </button>}
+              {/* Classroom Title */}
+              <h3 className="text-xl font-semibold text-gray-900 text-center">
+                {classroom.name}
+              </h3>
 
-              {/* Countdown */}
-              {attendanceTimers[classroom._id] && (
-                <p className="text-green-700 font-semibold">
-                  Time Left:{" "}
-                  {Math.max(  
-                    0,
-                    Math.ceil(
-                      (attendanceTimers[classroom._id] - Date.now()) / 1000
-                    )
-                  )}
-                  s
-                </p>
-              )}
+              {/* Buttons */}
+              <div className="flex flex-col gap-4 mt-4">
 
-              {/* Punch In / Out */}
-              <div className="flex gap-3 w-full">
+                {/* Chat */}
                 <button
-                  onClick={() => handlePunchIn(classroom._id)}
-                  className="w-1/2 bg-green-600 text-white py-2 rounded-lg"
+                  onClick={() => {
+                    setOpenChat(classroom._id);
+                    setExistingMessages(classroom.discussion);
+                  }}
+                  className="px-5 py-3 bg-purple-600 w-full text-white rounded-lg hover:bg-purple-700 transition-all shadow-sm"
                 >
-                  Punch In
+                  💬 Open Chat
                 </button>
-                <button
-                  onClick={() => handlePunchOut(classroom._id)}
-                  className="w-1/2 bg-red-600 text-white py-2 rounded-lg"
-                >
-                  Punch Out
-                </button>
+
+                {/* Teacher Controls */}
+                {userData.role === "Teacher" && (
+                  <>
+                    <button
+                      onClick={() => handleStartAttendance(classroom._id)}
+                      className="px-5 py-3 bg-blue-600 text-white rounded-lg w-full hover:bg-blue-700 transition-all shadow-sm"
+                    >
+                      Start Attendance (10 mins)
+                    </button>
+
+                    {isActive && (
+                      <p className="text-green-700 text-center font-medium">
+                        ⏳ Time Left: {timeLeft}s
+                      </p>
+                    )}
+                  </>
+                )}
+
+                {/* Punch Buttons */}
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => handlePunch("punchIn", classroom._id)}
+                    className="w-1/2 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-sm"
+                  >
+                    Punch In
+                  </button>
+                  <button
+                    onClick={() => handlePunch("punchOut", classroom._id)}
+                    className="w-1/2 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all shadow-sm"
+                  >
+                    Punch Out
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* Chat Modal */}
       {openChat && (
         <ChatModal
           classroomId={openChat}
           socket={socketActions}
           onClose={() => setOpenChat(null)}
-          existingMessages={ existingMessagesOfOpenChat }
+          existingMessages={existingMessagesOfOpenChat}
         />
       )}
     </div>

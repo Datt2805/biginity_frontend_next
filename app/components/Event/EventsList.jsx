@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import EventCard from "./EventCard";
 import { getEvents, makeRequest, hostSocket } from "@/lib/api/index";
 import RouteLoader from "@/app/components/Common/RouteLoader";
@@ -18,8 +18,12 @@ export default function EventsList() {
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
+  // requestId ensures we only accept the latest response
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
-    let isMounted = true;
+    const currentRequestId = ++requestIdRef.current;
+    let aborted = false;
 
     const fetchEvents = async () => {
       setLoading(true);
@@ -28,51 +32,53 @@ export default function EventsList() {
       try {
         let data;
 
-        // ✅ Use your original logic for ALL events
         if (filter === "all" && typeof getEvents === "function") {
           data = await getEvents();
         } else {
-          const route = EVENT_ROUTES[filter];
+          const route = EVENT_ROUTES[filter] || EVENT_ROUTES.all;
+          // Use makeRequest; makeRequest should support aborting if necessary.
           data = await makeRequest(`${hostSocket}${route}`, "GET");
         }
 
-        // ✅ Safe parsing just like your old logic
-        const eventsArr = Array.isArray(data) ? data : data?.events || [];
+        // If a newer request was started, ignore this result
+        if (aborted || currentRequestId !== requestIdRef.current) return;
 
-        if (isMounted) setEvents(eventsArr);
+        const eventsArr = Array.isArray(data) ? data : data?.events || [];
+        setEvents(eventsArr);
       } catch (err) {
-        if (isMounted) setErrMsg(err?.message || "Failed to load events");
+        if (aborted || currentRequestId !== requestIdRef.current) return;
+        setErrMsg(err?.message || "Failed to load events");
       } finally {
-        if (isMounted) setLoading(false);
+        if (aborted || currentRequestId !== requestIdRef.current) return;
+        setLoading(false);
       }
     };
 
     fetchEvents();
 
     return () => {
-      isMounted = false;
+      aborted = true;
     };
   }, [filter]);
 
-  // ✅ Loading state
   if (loading) return <RouteLoader />;
-
-  // ✅ Error state
-  if (errMsg)
-    return <p className="text-red-500 text-center p-4">{errMsg}</p>;
+  if (errMsg) return <p className="text-red-500 text-center p-4">{errMsg}</p>;
 
   return (
     <div className="w-full">
-
-      {/* ✅ FILTER BAR */}
-      <div className="w-full p-4 bg-white border-b sticky top-[64px] z-40">
-        <div className="flex gap-3 overflow-x-auto">
+      {/* FILTER BAR */}
+      <div className="w-full p-4 bg-white border-b mb-6">
+        <div className="flex flex-wrap gap-3">
           {["all", "upcoming", "ongoing", "ended"].map((type) => (
             <button
               key={type}
               onClick={() => setFilter(type)}
               className={`px-4 py-2 rounded-full text-sm font-semibold transition
-                ${filter === type ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}
+                ${
+                  filter === type
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                }
               `}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -81,35 +87,37 @@ export default function EventsList() {
         </div>
       </div>
 
-      {/* ✅ EVENT LIST FROM YOUR ORIGINAL LOGIC */}
-      <div className="flex flex-wrap">
+      {/* EVENT LIST */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {events.length === 0 && (
+          <p className="w-full text-center text-gray-500 text-xl mt-6">No events found.</p>
+        )}
+
         {events.map((event) => {
           const start = event?.start_time ? new Date(event.start_time) : null;
+          const end = event?.end_time ? new Date(event.end_time) : null;
+          const now = new Date();
+
           const year = start ? start.getFullYear() : "N/A";
           const month = start ? start.getMonth() + 1 : "N/A";
 
+          // --- AUTO DETECT STATUS ---
+          let status = "Upcoming";
+          if (end && now > end) status = "Ended";
+          else if (start && end && now >= start && now <= end) status = "Ongoing";
+
           return (
             <EventCard
-              key={event._id}
-              id={event._id}
+              key={event._id || event.id}
+              id={event._id || event.id}
               heading={event.title}
               date={{ year, month }}
               location={event?.location?.address || "Unknown"}
-              img={
-                 event?.image 
-                 ? `${hostSocket}${event.image}`  
-                 : "./logo.png" 
-              }
+              img={event?.image ? `${hostSocket}${event.image}` : undefined}
+              status={status}
             />
           );
         })}
-
-        {/* ✅ Empty state */}
-        {!events.length && (
-          <p className="w-full text-center text-gray-500 text-xl mt-6">
-            No events found.
-          </p>
-        )}
       </div>
     </div>
   );

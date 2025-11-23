@@ -8,10 +8,11 @@ export default function LayoutWrapper({ children }) {
 
   const isStudentRoute = pathname.startsWith("/student");
   const isTeacherRoute = pathname.startsWith("/teacher");
+  const isAdminRoute = pathname.startsWith("/admin"); 
 
   return (
     <>
-      {!isStudentRoute && !isTeacherRoute && <Navbar />}
+      {!isStudentRoute && !isTeacherRoute && !isAdminRoute && <Navbar />}
       {children}
     </>
   );

@@ -1,21 +1,59 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import defaultPlaceholder from "@/public/logo.png";
 import { fetchUserDetail, hostSocket } from "@/lib/api";
-
-const userLoggedIn = await fetchUserDetail();
+import { useRouter } from "next/navigation";
 
 export default function EventDetails({ event }) {
+  const [userLoggedIn, setUserLoggedIn] = useState(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    async function getUser() {
+      try {
+        const user = await fetchUserDetail();
+        setUserLoggedIn(!!user); // convert to TRUE/FALSE
+      } catch (err) {
+        setUserLoggedIn(false);
+      }
+    }
+    getUser();
+  }, []);
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 bg-gray-100">
+      <button
+        onClick={() => router.back()}
+        className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-white shadow rounded-lg text-gray-700 hover:bg-gray-100"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+        Back
+      </button>
+
       {/* Title */}
       <h1 className="text-3xl font-bold mb-6">{event.title}</h1>
 
       {/* Event Image */}
       <div className="mb-6">
         <Image
-          src={event?.image ? `${hostSocket}${event.image}` : "./logo.png"}
+          src={
+            event?.image ? `${hostSocket}${event.image}` : defaultPlaceholder
+          }
           alt={event.title}
           width={800}
           height={400}
@@ -62,11 +100,13 @@ export default function EventDetails({ event }) {
       </div>
 
       {/* Speakers */}
-      {/* button here to view speaker details */}
-      { !userLoggedIn ? (
-        <button className="bg-blue-600 rounded cursor-pointer  p-2 text-white hover:bg-blue-700" 
-          onClick={()=>window.location.replace("/LoginSignUp") }
-        > 
+      {userLoggedIn === null ? (
+        <p>Loading...</p>
+      ) : !userLoggedIn ? (
+        <button
+          className="bg-blue-600 rounded cursor-pointer p-2 text-white hover:bg-blue-700"
+          onClick={() => window.location.replace("/LoginSignUp")}
+        >
           Log in to view Speaker Details
         </button>
       ) : (
@@ -79,7 +119,11 @@ export default function EventDetails({ event }) {
                 className="flex items-center gap-4 p-4 bg-white shadow rounded-xl"
               >
                 <Image
-                  src={speaker.profile || defaultPlaceholder}
+                  src={
+                    speaker.profile
+                      ? `${hostSocket}${speaker.profile}`
+                      : defaultPlaceholder
+                  }
                   alt={speaker.name}
                   width={80}
                   height={80}

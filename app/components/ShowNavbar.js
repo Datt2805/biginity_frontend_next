@@ -3,13 +3,16 @@ import { usePathname } from "next/navigation";
 import Navbar from "./NavBar";
 
 export default function ShowNavbar({ children }) {
-  const pathname = usePathname();
+  const pathname = usePathname() || "";
 
-  // ✅ Routes that START with (prefix match)
-  const hidePrefix = ["/teacher", "/student"];
+  // Routes to hide navbar
+  const hidePrefix = ["/teacher", "/student", "/admin"]; // ← ADD ADMIN HERE
+
+  const hideEventDetail = pathname.startsWith("/events/detail");
 
   const shouldHide =
-    hidePrefix.some((prefix) => pathname.startsWith(prefix));
+    hidePrefix.some((prefix) => pathname.startsWith(prefix)) ||
+    hideEventDetail;
 
   return (
     <>

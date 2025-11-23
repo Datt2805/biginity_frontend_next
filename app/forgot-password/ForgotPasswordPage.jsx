@@ -4,48 +4,86 @@ import { useRouter } from "next/navigation";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import FormInput from "@/app/components/forms/FormInput";
-import { FaEnvelope } from "react-icons/fa";
-import { verifyEmail } from "@/lib/api/index"; // adjust path if needed
+import { FaEnvelope, FaEye, FaEyeSlash } from "react-icons/fa";
+import { verifyEmail, resetPassword } from "@/lib/api";
 
 const ForgotPasswordPage = () => {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otp, setOtp] = useState("");
-  const [newPassword, setNewPassword] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
 
-  const handleSendOtp = () => {
-    if (!email) return toast.error("Enter your email first");
+  const [showPass, setShowPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+
+  const [loading, setLoading] = useState(false);
+
+  const handleSendOtp = async () => {
+    if (!email) return toast.error("Enter your email first!");
+    setLoading(true);
+
     verifyEmail(
       email,
-      "forgot-password",
-      (res) => {
+      "password reset",
+      () => {
         toast.success("OTP sent to your email!");
         setOtpSent(true);
+        setLoading(false);
       },
-      (err) => toast.error(err.message || "Failed to send OTP")
+      (err) => {
+        toast.error(err.message || "Failed to send OTP");
+        setLoading(false);
+      }
     );
   };
 
   const handleResetPassword = () => {
-    if (!otp || !newPassword)
-      return toast.error("Please fill in all fields");
-    toast.success("Password reset successful!");
+    if (!otp || !password || !confirmPass)
+      return toast.error("All fields are required");
+
+    if (password !== confirmPass)
+      return toast.error("Passwords do not match");
+
+    setLoading(true);
+
+    resetPassword(
+      email,
+      otp,
+      password,
+      () => {
+        toast.success("Password changed successfully!");
+        setTimeout(() => router.push("/LoginSignUp"), 1200);
+        setLoading(false);
+      },
+      (err) => {
+        toast.error(err.message || "Failed to reset password");
+        setLoading(false);
+      }
+    );
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 px-4">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md text-center">
-        <h2 className="text-3xl font-bold text-green-500 mb-4">
+    <div
+      className="flex items-center justify-center 
+                 h-[calc(100vh-80px)] 
+                 bg-gradient-to-br from-green-50 to-gray-100 px-4 overflow-hidden"
+    >
+      <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-gray-200">
+        
+        <h2 className="text-3xl font-extrabold text-green-600 mb-2 text-center">
           Forgot Password
         </h2>
-        <p className="text-gray-600 mb-6">
-          Enter your email to receive a reset OTP.
+        <p className="text-gray-500 text-center mb-8 text-sm">
+          Enter your registered email to receive OTP for password reset.
         </p>
 
+        {/* EMAIL INPUT */}
         <FormInput
           type="email"
-          placeholder="Email"
+          placeholder="Enter your email"
           icon={FaEnvelope}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -53,36 +91,82 @@ const ForgotPasswordPage = () => {
 
         {otpSent && (
           <>
-            <FormInput
+            {/* OTP FIELD */}
+            <input
               type="text"
               placeholder="Enter OTP"
               value={otp}
               onChange={(e) => setOtp(e.target.value)}
+              className="w-full h-12 mt-4 px-4 rounded-lg border border-gray-300 
+                         focus:border-green-500 focus:ring focus:ring-green-200 bg-white outline-none"
             />
-            <FormInput
-              type="password"
-              placeholder="New Password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
+
+            {/* NEW PASSWORD */}
+            <div className="relative mt-4">
+              <input
+                type={showPass ? "text" : "password"}
+                placeholder="New Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full h-12 px-4 rounded-lg border border-gray-300 
+                           focus:border-green-500 focus:ring focus:ring-green-200 bg-white outline-none"
+              />
+              <span
+                className="absolute right-4 top-3.5 cursor-pointer text-gray-500"
+                onClick={() => setShowPass(!showPass)}
+              >
+                {showPass ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
+
+            {/* CONFIRM PASSWORD */}
+            <div className="relative mt-4">
+              <input
+                type={showConfirmPass ? "text" : "password"}
+                placeholder="Confirm Password"
+                value={confirmPass}
+                onChange={(e) => setConfirmPass(e.target.value)}
+                className="w-full h-12 px-4 rounded-lg border border-gray-300 
+                           focus:border-green-500 focus:ring focus:ring-green-200 bg-white outline-none"
+              />
+              <span
+                className="absolute right-4 top-3.5 cursor-pointer text-gray-500"
+                onClick={() => setShowConfirmPass(!showConfirmPass)}
+              >
+                {showConfirmPass ? <FaEyeSlash /> : <FaEye />}
+              </span>
+            </div>
           </>
         )}
 
+        {/* BUTTON */}
         <button
           onClick={otpSent ? handleResetPassword : handleSendOtp}
-          className="w-full bg-green-500 text-white mt-4 py-2 rounded-full font-semibold hover:bg-green-600 transition-all duration-200"
+          disabled={loading}
+          className={`w-full h-12 mt-8 rounded-lg text-lg font-semibold shadow 
+            transition-all duration-200 text-white 
+            ${loading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}
         >
-          {otpSent ? "Reset Password" : "Send OTP"}
+          {loading ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              Processing...
+            </span>
+          ) : otpSent ? (
+            "Reset Password"
+          ) : (
+            "Send OTP"
+          )}
         </button>
 
-        {/* Back to Sign In link */}
         <p
           onClick={() => router.push("/LoginSignUp")}
-          className="text-sm text-green-600 hover:underline mt-4 cursor-pointer"
+          className="text-sm text-green-600 hover:underline mt-6 text-center cursor-pointer"
         >
           Back to Sign In
         </p>
       </div>
+
       <ToastContainer />
     </div>
   );
