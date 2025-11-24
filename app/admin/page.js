@@ -1,4 +1,3 @@
-// app/teacher/page.jsx
 import React from 'react';
 import AdminPage from './adminPage.jsx';
 
@@ -14,4 +13,4 @@ const adminPage = () => {
   );
 };
 
-export default TeacherPage;
+export default adminPage;
