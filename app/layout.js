@@ -5,6 +5,7 @@ import "./globals.css";
 // ✅ Wrap UI with ClientOnly
 import ClientOnly from "./components/ClientOnly";
 import ShowNavbar from "./components/ShowNavbar";
+import { SocketProvider } from "../lib/api/initSocket";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,13 +27,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased">
-
         <ClientOnly>
-          <ShowNavbar>
+          <SocketProvider>
+            <ShowNavbar></ShowNavbar>
             {children}
-          </ShowNavbar>
+          </SocketProvider>
         </ClientOnly>
-
       </body>
     </html>
   );

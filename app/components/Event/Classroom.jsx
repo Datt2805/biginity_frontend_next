@@ -1,386 +1,305 @@
 "use client";
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import {
-  getClassrooms,
-  initSocket,
-  fetchUserDetail,
-  getEnrollmentsByUser,
-} from "../../../lib/api";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { toast } from "react-toastify";
+import { useSocket } from "../../../lib/api/initSocket"; 
+import { getClassrooms, fetchUserDetail } from "../../../lib/api/app-SDK";
 import Loader from "../Common/Loader";
 import ChatModal from "../Chat/ChatModal";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
 
-const LS_KEYS = {
-  TIMERS: "attendanceTimers",
-  PUNCH: "punchStatus",
-};
-
-const useLocalState = (key, initial) => {
-  const [state, setState] = useState(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : initial;
-    } catch (e) {
-      return initial;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(key, JSON.stringify(state));
-    } catch (e) {
-      // ignore storage errors
-    }
-  }, [key, state]);
-
-  return [state, setState];
-};
 
 const Classroom = () => {
-  // user + enrollments
-  const [userData, setUserData] = useState(null);
-  const [enrolledIds, setEnrolledIds] = useState([]);
+  // 1. Get the persistent socket instance from Context
+  const socket = useSocket();
 
-  // classrooms
   const [classrooms, setClassrooms] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  // socket
-  const socketRef = useRef(null);
-
-  // chat
+  const [userData, setUserData] = useState(null);
   const [openChat, setOpenChat] = useState(null);
-  const [existingMessagesOfOpenChat, setExistingMessages] = useState([]);
+  const [attendanceTimers, setAttendanceTimers] = useState({});
+  
+  const timerIntervalRef = useRef(null);
 
-  // attendance timers & punch status (persisted)
-  const [attendanceTimers, setAttendanceTimers] = useLocalState(LS_KEYS.TIMERS, {});
-  const [punchStatus, setPunchStatus] = useLocalState(LS_KEYS.PUNCH, {});
+  // ---------------------------------------------------------
+  // 1.5 NEW: ROBUST AUTO-CONNECT LOGIC
+  // ---------------------------------------------------------
+  useEffect(() => {
+    // If socket is not loaded yet, do nothing
+    if (!socket) return;
 
-  // locks to prevent double actions
-  const punchLock = useRef({ in: {}, out: {} });
+    // Try to find the raw socket.io client
+    // Your code uses 'socket.socket', so we prioritize that.
+    const ioClient = socket.socket || socket;
 
-  // ------- Helpers --------
-  const isStudent = userData?.role === "Student";
-
-  const loadClassrooms = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const data = await getClassrooms();
-      setClassrooms(data?.classrooms || data || []);
-    } catch (err) {
-      setError(err?.message || "Failed to load classrooms");
-      console.error(err);
-    } finally {
-      setLoading(false);
+    // Check if we found a valid socket client
+    if (ioClient) {
+      // If it is explicitly disconnected, force a connection
+      if (ioClient.connected === false) {
+        console.log("🔌 Socket is disconnected. Forcing connection now...");
+        
+        // Force the connection
+        if (ioClient.connect) ioClient.connect(); 
+        
+        // Double check: Some wrappers use 'open' instead of connect
+        else if (ioClient.open) ioClient.open();
+      }
+    } else {
+      console.warn("⚠️ Socket wrapper exists, but raw IO client is missing.");
     }
-  }, []);
+  }, [socket]);
 
-  const loadUserAndEnrollments = useCallback(async () => {
-    try {
-      const u = await fetchUserDetail();
-      setUserData(u);
 
-      if (u?.role === "Student") {
-        try {
-          const ids = await getEnrollmentsByUser(u._id);
-          // normalize to array of ids
-          setEnrolledIds(ids || []);
-        } catch (e) {
-          console.warn("Failed to fetch enrollments", e);
-          setEnrolledIds([]);
+  // ---------------------------------------------------------
+  // 2. DEFINE CALLBACKS (These update the UI)
+  // ---------------------------------------------------------
+
+  // Handle incoming messages
+  const handleNewMessage = useCallback((data) => {
+    console.log("⚡ UI Received Message:", data);
+    
+    // Handle potential ID naming differences from backend
+    const targetId = data.classroom_id || data.classroomId || data._id;
+
+    setClassrooms((prevClassrooms) => {
+      return prevClassrooms.map((c) => {
+        // Convert to string for safe comparison
+        if (String(c._id) === String(targetId)) {
+          return {
+            ...c,
+            discussion: [
+              ...(c.discussion || []),
+              {
+                nickname: data.nickname || "User",
+                message: data.message,
+                createdAt: data.createdAt || new Date().toISOString(),
+                timestamp: Date.now(),
+              },
+            ],
+          };
         }
-      }
-    } catch (err) {
-      console.error("Failed to fetch user detail", err);
-      setError("Failed to fetch user data");
+        return c;
+      });
+    });
+  }, []);
+
+  // Handle Attendance Events
+  const handleAttendanceEvent = useCallback((type, data) => {
+    if (type === "started") {
+      toast.info(`Attendance Started for: ${data.classroom_name}`);
+    } else if (type === "punchIn") {
+      data.success ? toast.success("Punch In Successful!") : toast.error(data.message);
+    } else if (type === "punchOut") {
+      data.success ? toast.success("Punch Out Successful!") : toast.error(data.message);
     }
   }, []);
 
-  // ------- Socket init & callbacks --------
-  useEffect(() => {
-    let mounted = true;
+  // ---------------------------------------------------------
+  // 3. INITIALIZATION (Fetch Data & Wire up Socket)
+  // ---------------------------------------------------------
+  const initialize = async () => {
+      try {
+        setLoading(true);
+        
+        // A. Fetch Data
+        const [user, clsData] = await Promise.all([fetchUserDetail(), getClassrooms()]);
+        setUserData(user);
+        
+        const list = clsData?.length ? clsData : (clsData?.classrooms || []);
+        setClassrooms(list);
 
-    const init = async () => {
-      await loadUserAndEnrollments();
-      await loadClassrooms();
+        // B. Wire up Socket (Only if socket exists and we have classrooms)
+        if (socket && list.length > 0) {
+          console.log("🔗 Wiring up Socket Context...");
 
-      const actions = new initSocket({
-        newMessageCallback: (d) => console.log("Socket new message:", d),
-        attendanceStartedCallback: (payload) => {
-          // payload may contain classroom_id and duration
-          const classId = payload?.classroom_id;
-          const durationMin = payload?.duration || 10;
+          // Use the setter methods from your Context Provider
+          socket.setCallback('newMessageCallback', handleNewMessage);
+          socket.setCallback('attendanceStartedCallback', (d) => handleAttendanceEvent('started', d));
+          socket.setCallback('punchInCallback', (d) => handleAttendanceEvent('punchIn', d));
+          socket.setCallback('punchOutCallback', (d) => handleAttendanceEvent('punchOut', d));
 
-          if (classId) {
-            const endTime = Date.now() + durationMin * 60 * 1000;
-            setAttendanceTimers((prev) => ({ ...prev, [classId]: endTime }));
-            toast.success("Attendance started.");
-          } else {
-            toast.success("Attendance started.");
+          // Join Rooms
+          const classroomIds = list.map(c => c._id);
+          
+          // Check if your SDK has joinClassRoom, else fallback to emit
+          if (typeof socket.joinClassRoom === 'function') {
+            socket.joinClassRoom(classroomIds);
+          } else if (socket.socket) {
+             socket.socket.emit('join_classroom', classroomIds);
           }
-        },
-        attendanceStoppedCallback: (payload) => {
-          const classId = payload?.classroom_id;
-          if (classId) {
-            setAttendanceTimers((prev) => {
-              const updated = { ...prev };
-              delete updated[classId];
-              return updated;
-            });
+        }
 
-            setPunchStatus((prev) => {
-              const updated = { ...prev };
-              delete updated[classId];
-              return updated;
-            });
-
-            toast.info("Attendance stopped by backend.");
-          }
-        },
-        punchInCallback: (payload) => {
-          const classId = payload?.classroom_id;
-          if (classId) {
-            setPunchStatus((prev) => ({ ...prev, [classId]: "in" }));
-            // release lock
-            if (punchLock.current.in[classId]) delete punchLock.current.in[classId];
-            toast.success("Punch-In recorded");
-          }
-        },
-        punchOutCallback: (payload) => {
-          const classId = payload?.classroom_id;
-          if (classId) {
-            setPunchStatus((prev) => ({ ...prev, [classId]: "done" }));
-            if (punchLock.current.out[classId]) delete punchLock.current.out[classId];
-            toast.success("Punch-Out recorded");
-          }
-        },
-      });
-
-      socketRef.current = actions;
-
-      if (!mounted) {
-        actions.socket?.disconnect();
-        socketRef.current = null;
+      } catch (err) {
+        console.error("Init Error:", err);
+        toast.error("Failed to load classrooms");
+      } finally {
+        setLoading(false);
       }
     };
-
-    init();
-
-    return () => {
-      mounted = false;
-      socketRef.current?.socket?.disconnect();
-      socketRef.current = null;
-    };
-  }, [loadClassrooms, loadUserAndEnrollments, setAttendanceTimers, setPunchStatus]);
-
-  // ------- Attendance timer interval (single source of truth) --------
   useEffect(() => {
-    const id = setInterval(() => {
+    initialize();
+  }, [socket, handleNewMessage, handleAttendanceEvent]);
+
+
+  // ---------------------------------------------------------
+  // 4. ATTENDANCE LOGIC (Timers & Geolocation)
+  // ---------------------------------------------------------
+
+  // Auto-stop attendance timer
+  useEffect(() => {
+    if (Object.keys(attendanceTimers).length === 0) return;
+
+    timerIntervalRef.current = setInterval(() => {
+      const now = Date.now();
       setAttendanceTimers((prev) => {
-        const now = Date.now();
-        const updated = { ...prev };
-        let changed = false;
-
-        Object.keys(prev).forEach((classroomId) => {
-          if (prev[classroomId] <= now) {
-            changed = true;
-            delete updated[classroomId];
-
-            // reset punch for that classroom
-            setPunchStatus((p) => {
-              const pcopy = { ...p };
-              delete pcopy[classroomId];
-              return pcopy;
-            });
-
-            // Optionally: inform backend (only if socket available)
-            try {
-              socketRef.current?.stopAttendance?.(classroomId);
-            } catch (e) {
-              // ignore
-            }
-
-            toast.info(`Attendance ended for classroom ${classroomId}`);
+        const updates = { ...prev };
+        let hasChanges = false;
+        
+        Object.entries(prev).forEach(([id, endTime]) => {
+          if (now >= endTime) {
+            if (socket?.stopAttendance) socket.stopAttendance(id);
+            delete updates[id];
+            hasChanges = true;
+            toast.info("Attendance ended automatically.");
           }
         });
-
-        if (changed) {
-          return updated;
-        }
-        return prev;
+        return hasChanges ? updates : prev;
       });
     }, 1000);
 
-    return () => clearInterval(id);
-  }, []);
+    return () => clearInterval(timerIntervalRef.current);
+  }, [attendanceTimers, socket]);
 
-  // Prevent leaving while any attendance active
-  useEffect(() => {
-    const onBeforeUnload = (e) => {
-      if (Object.keys(attendanceTimers).length > 0) {
-        e.preventDefault();
-        e.returnValue = "Attendance is active. Are you sure you want to leave?";
-      }
-    };
-    window.addEventListener("beforeunload", onBeforeUnload);
-    return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [attendanceTimers]);
-
-  // ------- Actions --------
-  const handleStartAttendance = useCallback((classroomId, minutes = 10) => {
-    if (!socketRef.current) return toast.error("Socket not ready");
-
-    try {
-      socketRef.current.startAttendance(classroomId, minutes);
-      const endTime = Date.now() + minutes * 60 * 1000;
-      setAttendanceTimers((prev) => ({ ...prev, [classroomId]: endTime }));
-      toast.success(`Attendance started for ${minutes} minutes.`);
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to start attendance");
-    }
-  }, [setAttendanceTimers]);
-
-  const handlePunch = useCallback((type, classroomId) => {
-    if (!socketRef.current) return toast.error("Socket not ready");
-
-    // role checks (best-effort: rely on backend for enforcement)
-    if (userData?.role === "Teacher") {
-      toast.warning("Teachers cannot punch in/out");
-      return;
+  // Start Attendance Handler
+  const handleStartAttendance = (classroomId, classroom_name) => {
+    if (!socket) return toast.error("Socket not connected");
+    
+    const durationMins = 10;
+    
+    if (socket.startAttendance) {
+      socket.startAttendance(classroomId, classroom_name, durationMins);
+    } else {
+      socket.socket.emit('start_attendance', { classroomId: classroomId, classroom_name, duration: durationMins });
     }
 
-    const current = punchStatus[classroomId] || "none";
-    if (current === "done") return toast.warning("Punch cycle completed.");
-    if (type === "punchIn" && current !== "none")
-      return toast.warning("Already punched in.");
-    if (type === "punchOut" && current !== "in")
-      return toast.warning("Punch-Out allowed only after Punch-In.");
+    setAttendanceTimers(prev => ({
+      ...prev,
+      [classroomId]: Date.now() + durationMins * 60000
+    }));
+    
+    toast.success("Attendance started (10m)");
+  };
 
-    // prevent double request per classroom per type
-    const lockKey = type === "punchIn" ? "in" : "out";
-    if (punchLock.current[lockKey][classroomId])
-      return toast.warning("Processing... please wait.");
-
-    punchLock.current[lockKey][classroomId] = true;
+  // Punch In/Out Handler
+  const handlePunch = (type, classroomId) => {
+    if (!socket) return toast.error("Socket not connected");
+    if (!navigator.geolocation) return toast.error("Geolocation not supported");
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        try {
-          const payload = {
-            classroom_id: classroomId,
-            location: { lat: pos.coords.latitude, long: pos.coords.longitude },
-          };
+        const payload = {
+          classroom_id: classroomId,
+          location: { lat: pos.coords.latitude, long: pos.coords.longitude }
+        };
 
-          if (type === "punchIn") socketRef.current.punchIn(payload);
-          else socketRef.current.punchOut(payload);
-
-          // optimistic UI update (will be reconciled by socket callbacks)
-          setPunchStatus((prev) => ({ ...prev, [classroomId]: type === "punchIn" ? "in" : "done" }));
-        } catch (err) {
-          console.error(err);
-          toast.error("Failed to send punch request");
-          // release lock
-          delete punchLock.current[lockKey][classroomId];
+        if (type === 'punchIn' && socket.punchIn) socket.punchIn(payload);
+        else if (type === 'punchOut' && socket.punchOut) socket.punchOut(payload);
+        else {
+           // Fallback
+           const event = type === 'punchIn' ? 'punch_in' : 'punch_out';
+           socket.socket.emit(event, payload);
         }
       },
       (err) => {
-        console.error("Geolocation failed", err);
+        console.error(err);
         toast.error("Location access denied.");
-        delete punchLock.current[lockKey][classroomId];
       }
     );
-  }, [punchStatus, userData]);
+  };
 
-  // Visible classrooms for students
-  const visibleClassrooms = isStudent
-    ? classrooms.filter((c) => enrolledIds.includes(c._id))
-    : classrooms;
+  // Helper to get messages for the modal
+  const getCurrentMessages = () => {
+    if (!openChat) return [];
+    return classrooms.find(c => String(c._id) === String(openChat))?.discussion || [];
+  };
 
   if (loading || !userData) return <Loader />;
-  if (error) return <div className="text-red-600">{error}</div>;
 
-  // ---------- Render ----------
   return (
     <div className="min-h-screen bg-gray-100 px-6 py-10">
-      <ToastContainer />
 
-      <h2 className="text-4xl font-extrabold text-gray-800 text-center mb-10">Classrooms</h2>
+      <h2 className="text-4xl font-extrabold text-gray-800 text-center mb-10">
+        Classrooms
+      </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
-        {visibleClassrooms.map((classroom) => {
-          const endTime = attendanceTimers[classroom._id];
-          const isActive = !!endTime;
-          const timeLeft = endTime ? Math.max(0, Math.ceil((endTime - Date.now()) / 1000)) : 0;
-          const status = punchStatus[classroom._id] || "none";
+      {classrooms.length === 0 ? (
+        <div className="text-center text-gray-600">No classrooms found.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-8">
+          {classrooms.map((classroom) => {
+            const endTime = attendanceTimers[classroom._id];
+            const isActive = Boolean(endTime);
+            const timeLeft = isActive ? Math.max(0, Math.ceil((endTime - Date.now()) / 1000)) : 0;
 
-          const eventEnded = classroom?.event_end_time && new Date(classroom.event_end_time).getTime() < Date.now();
-          const isClassroomInactive = classroom?.status === "Inactive";
+            return (
+              <div
+                key={classroom._id}
+                className={`relative bg-white rounded-2xl shadow-lg p-6 border ${
+                  isActive ? "border-green-500 ring-1 ring-green-500" : "border-gray-200"
+                }`}
+              >
+                <h3 className="text-xl font-bold text-gray-900 text-center mb-4">
+                  {classroom.name}
+                </h3>
 
-          return (
-            <div
-              key={classroom._id}
-              className={`relative bg-white rounded-2xl shadow-lg p-6 border transition ${isActive ? "ring-2 ring-green-500" : ""} ${isClassroomInactive ? "opacity-50 grayscale pointer-events-none" : ""}`}>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setOpenChat(classroom._id)}
+                    className="w-full py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                  >
+                    💬 Chat ({classroom.discussion?.length || 0})
+                  </button>
 
-              <span className={`absolute top-3 right-3 z-10 px-3 py-1 text-xs rounded-full font-semibold ${isActive ? "bg-green-600 text-white" : eventEnded ? "bg-red-600 text-white" : "bg-gray-400 text-white"}`}>
-                {isActive ? "Attendance Active" : eventEnded ? "Event Ended" : "Inactive"}
-              </span>
-
-              <h3 className="text-xl font-semibold text-center">{classroom.name}</h3>
-
-              <div className="flex flex-col gap-4 mt-4">
-                <button
-                  onClick={() => {
-                    setOpenChat(classroom._id);
-                    setExistingMessages(classroom.discussion || []);
-                  }}
-                  className="px-5 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                >
-                  💬 Open Chat
-                </button>
-
-                {userData?.role === "Teacher" && (
-                  <>
-                    <button onClick={() => handleStartAttendance(classroom._id)} className="px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                      Start Attendance (default)
+                  {userData.role === "Teacher" && (
+                    <button
+                      onClick={() => handleStartAttendance(classroom._id, classroom.name)}
+                      disabled={isActive}
+                      className={`w-full py-2 text-white rounded ${
+                        isActive ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                    >
+                      {isActive ? `Ends in: ${Math.floor(timeLeft/60)}m ${timeLeft%60}s` : "Start Attendance"}
                     </button>
-
-                    {isActive && (
-                      <p className="text-green-700 text-center font-medium">⏳ Time Left: {timeLeft}s</p>
-                    )}
-                  </>
-                )}
-
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => handlePunch("punchIn", classroom._id)}
-                    disabled={status === "in" || status === "done"}
-                    className={`w-1/2 py-3 rounded-lg text-white ${status === "in" || status === "done" ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"}`}>
-                    Punch In
-                  </button>
-
-                  <button
-                    onClick={() => handlePunch("punchOut", classroom._id)}
-                    disabled={status !== "in"}
-                    className={`w-1/2 py-3 rounded-lg text-white ${status !== "in" ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"}`}>
-                    Punch Out
-                  </button>
+                  )}
+                  {userData.role === "Student" && (
+                    <div className="flex gap-2">
+                    <button
+                      onClick={() => handlePunch("punchIn", classroom._id)}
+                      className="flex-1 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                    >
+                      Punch In
+                    </button>
+                    <button
+                      onClick={() => handlePunch("punchOut", classroom._id)}
+                      className="flex-1 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Punch Out
+                    </button>
+                  </div>
+                  )}
+                  
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              </div> 
+            );
+          })}
+        </div>  
+      )}
 
       {openChat && (
         <ChatModal
           classroomId={openChat}
-          socket={socketRef.current}
+          socket={socket} // Pass the context socket to the modal
           onClose={() => setOpenChat(null)}
-          existingMessages={existingMessagesOfOpenChat}
+          messages={getCurrentMessages()}
+          currentUser={userData}
         />
       )}
     </div>
