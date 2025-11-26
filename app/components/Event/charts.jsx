@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { getAllAttendances, hostSocket } from "../../../lib/api"; 
 import {
   Chart as ChartJS,
@@ -41,6 +41,96 @@ const getDistanceInMeters = (lat1, lon1, lat2, lon2) => {
   const a = Math.sin(toRad(lat2 - lat1) / 2) ** 2 +
             Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(toRad(lon2 - lon1) / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// --- Custom Searchable Dropdown Component ---
+const SearchableDropdown = ({ options, value, onChange, placeholder = "Select Event" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const wrapperRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Filter options based on search
+  const filteredOptions = options.filter(opt => 
+    opt.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Get current selected title
+  const selectedOption = options.find(opt => asId(opt) === value);
+  const displayLabel = selectedOption ? selectedOption.title : "All Events";
+
+  return (
+    <div className="relative" ref={wrapperRef}>
+      {/* The Display Box (Click to open) */}
+      <div 
+        className="border p-2 rounded bg-white cursor-pointer flex justify-between items-center h-[42px]"
+        onClick={() => {
+          setIsOpen(!isOpen);
+          setSearchTerm(""); // Reset search when opening
+        }}
+      >
+        <span className={`truncate ${!value ? "text-gray-600" : "text-gray-900"}`}>
+          {displayLabel}
+        </span>
+        <span className="text-gray-400 text-xs ml-2">▼</span>
+      </div>
+
+      {/* The Dropdown List */}
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded shadow-lg z-50 max-h-60 overflow-hidden flex flex-col">
+          {/* Search Input */}
+          <input
+            autoFocus
+            type="text"
+            placeholder="Search event..."
+            className="p-2 border-b w-full outline-none text-sm bg-gray-50"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+          {/* List Items */}
+          <div className="overflow-y-auto">
+            <div 
+              className="p-2 hover:bg-blue-50 cursor-pointer text-gray-600 border-b border-gray-100"
+              onClick={() => {
+                onChange("");
+                setIsOpen(false);
+              }}
+            >
+              All Events
+            </div>
+            
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt) => (
+                <div
+                  key={asId(opt)}
+                  className={`p-2 hover:bg-blue-50 cursor-pointer truncate ${asId(opt) === value ? "bg-blue-100 text-blue-800" : "text-gray-800"}`}
+                  onClick={() => {
+                    onChange(asId(opt));
+                    setIsOpen(false);
+                  }}
+                >
+                  {opt.title}
+                </div>
+              ))
+            ) : (
+              <div className="p-2 text-gray-400 text-sm text-center">No events found</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 // --- Main Component ---
@@ -150,38 +240,30 @@ const AnalyticsDashboard = () => {
     };
   }, [filteredData]);
 
-  // --- 4. Define Chart Options (UPDATED FOR BETTER VISIBILITY) ---
+  // --- 4. Define Chart Options ---
   const getChartOptions = (title, showAxes = false) => ({
     responsive: true,
     maintainAspectRatio: false,
     layout: {
       padding: {
-        top: showAxes ? 20 : 0 // Add padding on top for bar charts so labels don't get cut off
+        top: showAxes ? 20 : 0
       }
     },
     plugins: {
       legend: { position: 'top', labels: { font: { size: 12 } } },
       title: { display: !!title, text: title, font: { size: 16 } },
       datalabels: {
-        // --- UPDATED COLOR LOGIC ---
-        // If showing axes (Bar chart), use dark color. Otherwise (Pie), use white.
         color: showAxes ? '#555555' : '#ffffff', 
         font: { weight: 'bold', size: 11 },
-        // --- UPDATED POSITION LOGIC ---
-        // If Bar chart, anchor at the 'end' and align to the 'top' (pushes it outside).
-        // If Pie chart, center it.
         anchor: showAxes ? 'end' : 'center',
         align: showAxes ? 'top' : 'center',
-        offset: showAxes ? 4 : 0, // Add small space between bar and number
-        
+        offset: showAxes ? 4 : 0,
         formatter: (value, ctx) => {
           let sum = 0;
           let dataArr = ctx.chart.data.datasets[0].data;
           dataArr.map(data => { sum += data; });
           if (sum === 0) return "";
           let percentage = (value * 100 / sum).toFixed(1) + "%";
-          
-          // Lowered threshold to 2% so more labels show up on bar charts
           return (value * 100 / sum) > 2 ? percentage : ""; 
         },
       }
@@ -189,8 +271,8 @@ const AnalyticsDashboard = () => {
     scales: showAxes ? {
       x: { 
         display: true, 
-        grid: { display: false }, // Hiding vertical grid lines for cleaner look
-        ticks: { autoSkip: false, maxRotation: 90, minRotation: 45 } // Ensure labels don't overlap
+        grid: { display: false }, 
+        ticks: { autoSkip: false, maxRotation: 90, minRotation: 45 }
       },
       y: { 
         display: true, 
@@ -208,7 +290,6 @@ const AnalyticsDashboard = () => {
     
     const isBar = selectedChart === 'branch' || selectedChart === 'year';
     const largeOptions = getChartOptions(selectedChart.toUpperCase() + " ANALYSIS", isBar);
-    // Make font slightly larger for modal
     largeOptions.plugins.datalabels.font.size = 13; 
 
     let ChartComp;
@@ -251,18 +332,22 @@ const AnalyticsDashboard = () => {
       <div className="bg-white p-4 rounded-lg shadow mb-6">
         <h2 className="text-2xl font-bold mb-4 text-gray-800">📊 Attendance Analytics</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select className="border p-2 rounded" value={filterEvent} onChange={e => setFilterEvent(e.target.value)}>
-            <option value="">All Events</option>
-            {events.map(e => <option key={asId(e)} value={asId(e)}>{e.title}</option>)}
-          </select>
+          
+          {/* UPDATED: Searchable Dropdown for Events */}
+          <SearchableDropdown 
+            options={events}
+            value={filterEvent}
+            onChange={(val) => setFilterEvent(val)}
+          />
+
           <input 
             placeholder="Filter by Branch (e.g. CSE)" 
-            className="border p-2 rounded"
+            className="border p-2 rounded h-[42px]"
             value={filterBranch} onChange={e => setFilterBranch(e.target.value)} 
           />
            <input 
             placeholder="Filter by Year (e.g. 2025)" 
-            className="border p-2 rounded"
+            className="border p-2 rounded h-[42px]"
             value={filterYear} onChange={e => setFilterYear(e.target.value)} 
           />
         </div>
@@ -272,7 +357,7 @@ const AnalyticsDashboard = () => {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* Status Chart (Pie - White Text inside) */}
+        {/* Status Chart */}
         <div className="bg-white p-5 rounded-xl shadow-md cursor-pointer hover:shadow-xl transition-shadow border border-transparent hover:border-blue-500 group"
              onClick={() => setSelectedChart('status')}>
           <div className="flex justify-between items-center mb-4">
@@ -284,7 +369,7 @@ const AnalyticsDashboard = () => {
           </div>
         </div>
 
-        {/* Branch Chart (Bar - Dark text outside) */}
+        {/* Branch Chart */}
         <div className="bg-white p-5 rounded-xl shadow-md cursor-pointer hover:shadow-xl transition-shadow border border-transparent hover:border-blue-500 group"
              onClick={() => setSelectedChart('branch')}>
           <div className="flex justify-between items-center mb-4">
@@ -296,7 +381,7 @@ const AnalyticsDashboard = () => {
           </div>
         </div>
 
-        {/* Distance Chart (Doughnut - White text inside) */}
+        {/* Distance Chart */}
         <div className="bg-white p-5 rounded-xl shadow-md cursor-pointer hover:shadow-xl transition-shadow border border-transparent hover:border-blue-500 group"
              onClick={() => setSelectedChart('distance')}>
            <div className="flex justify-between items-center mb-4">
@@ -308,7 +393,7 @@ const AnalyticsDashboard = () => {
           </div>
         </div>
 
-        {/* Year Chart (Bar - Dark text outside) */}
+        {/* Year Chart */}
         <div className="bg-white p-5 rounded-xl shadow-md cursor-pointer hover:shadow-xl transition-shadow border border-transparent hover:border-blue-500 group"
              onClick={() => setSelectedChart('year')}>
            <div className="flex justify-between items-center mb-4">

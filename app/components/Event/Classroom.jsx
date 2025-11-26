@@ -131,7 +131,9 @@ const Classroom = () => {
         console.error("Init Error:", err);
         toast.error("Failed to load classrooms");
       } finally {
-        setLoading(false);
+        setTimeout(()=>{
+          setLoading(false);
+        },2000)
       }
     };
   useEffect(() => {
