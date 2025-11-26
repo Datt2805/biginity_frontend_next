@@ -25,7 +25,7 @@ const PREDEFINED_LOCATIONS = [
   },
 ];
 
-// tiny searchable dropdown (Option C)
+// --- SEARCHABLE DROPDOWN ---
 function SearchableDropdown({
   items,
   display,
@@ -78,7 +78,7 @@ function SearchableDropdown({
       {open && (
         <div
           className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow max-h-60 overflow-auto"
-          onMouseDown={(e) => e.preventDefault()} // keep input focus
+          onMouseDown={(e) => e.preventDefault()}
         >
           {filtered.length === 0 && (
             <div className="px-3 py-2 text-sm text-gray-500">No results</div>
@@ -105,18 +105,20 @@ function SearchableDropdown({
   );
 }
 
+// --- MAIN COMPONENT ---
 export default function CreateEvent() {
   const [loading, setLoading] = useState(false);
+  
+  // 1. State to hold the Image URL
   const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+  
   const [speakers, setSpeakers] = useState([]);
   const [selectedSpeakerId, setSelectedSpeakerId] = useState("");
 
-  // --- 2. NEW STATE FOR LOCATION AUTO-FILL ---
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
 
-  // Load speakers on mount
   useEffect(() => {
     (async () => {
       const res = await fetchSpeakersOnly();
@@ -124,12 +126,10 @@ export default function CreateEvent() {
     })();
   }, []);
 
-  // --- 3. HANDLE LOCATION CHANGE ---
   const handleLocationChange = (e) => {
     const selectedName = e.target.value;
     setAddress(selectedName);
 
-    // Find the matching location object
     const locData = PREDEFINED_LOCATIONS.find(
       (loc) => loc.name === selectedName
     );
@@ -138,7 +138,6 @@ export default function CreateEvent() {
       setLatitude(locData.lat);
       setLongitude(locData.long);
     } else {
-      // If they select "Other" or placeholder, clear coordinates or keep them manual
       setLatitude("");
       setLongitude("");
     }
@@ -146,6 +145,13 @@ export default function CreateEvent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // --- SAFETY CHECK: Ensure Image is Uploaded ---
+    // This prevents the form from sending empty data
+    if (!uploadedImageUrl) {
+        toast.error("Please upload the Event Banner Image first!");
+        return;
+    }
 
     if (!selectedSpeakerId) {
       toast.error("Please select a speaker");
@@ -156,16 +162,18 @@ export default function CreateEvent() {
     try {
       await createEvent(
         e,
-        () => toast.success("Event created successfully!"),
+        () => {
+            toast.success("Event created successfully!");
+            // Reset everything on success
+            e.target.reset();
+            setUploadedImageUrl("");
+            setSelectedSpeakerId("");
+            setAddress("");
+            setLatitude("");
+            setLongitude("");
+        },
         (error) => toast.error(error?.message || "Failed to create event")
       );
-      // reset after success
-      e.target.reset();
-      setUploadedImageUrl("");
-      setSelectedSpeakerId("");
-      setAddress(""); // Reset location state
-      setLatitude("");
-      setLongitude("");
     } finally {
       setLoading(false);
     }
@@ -178,24 +186,32 @@ export default function CreateEvent() {
     <div className="max-w-4xl mx-auto p-6 bg-white shadow-md rounded-lg mt-6">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Create Event</h2>
 
-      {/* Image upload */}
-      <div className="mb-6">
+      {/* --- IMAGE UPLOADER --- */}
+      <div className="mb-6 border border-gray-200 p-4 rounded bg-gray-50">
+        <h3 className="font-semibold text-gray-700 mb-2">1. Upload Banner</h3>
         <ImageUploader onUploadSuccess={setUploadedImageUrl} />
+        
+        {/* Visual Confirmation */}
         {uploadedImageUrl && (
-          <p className="text-sm text-green-700 mt-2 break-all">
-            Uploaded: {uploadedImageUrl}
-          </p>
+          <div className="mt-2 text-sm text-green-700 font-medium">
+            ✓ Image ready to attach
+          </div>
         )}
       </div>
 
       <form id="createEvent" onSubmit={handleSubmit} className="space-y-6">
-        {/* Hidden inputs */}
+        
+        {/* --- CRITICAL: THE HIDDEN BRIDGE --- */}
+        {/* This input takes the state (uploadedImageUrl) and puts it into the Form Data 
+            so that your API function (formData.get('banner_url')) can find it. */}
+        <input type="hidden" name="image" value={uploadedImageUrl || ""} />
+        {/* ----------------------------------- */}
+
         <input
           type="hidden"
           name="speaker_ids"
           value={selectedSpeakerId || ""}
         />
-        <input type="hidden" name="banner_url" value={uploadedImageUrl || ""} />
 
         {/* Mandatory Toggle */}
         <div className="flex items-center space-x-2">
@@ -299,7 +315,7 @@ export default function CreateEvent() {
           </div>
         </div>
 
-        {/* --- 4. LOCATION DROPDOWN & AUTO-FILL --- */}
+        {/* Location */}
         <fieldset className="border border-gray-200 p-4 rounded bg-gray-50">
           <legend className="font-semibold text-gray-700">Location</legend>
 
@@ -359,7 +375,7 @@ export default function CreateEvent() {
           </div>
         </fieldset>
 
-        {/* Speaker (Searchable Dropdown) */}
+        {/* Speaker */}
         <div>
           <label className="block text-gray-700 mb-1">Speaker</label>
           <SearchableDropdown

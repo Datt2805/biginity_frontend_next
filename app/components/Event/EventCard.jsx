@@ -28,7 +28,7 @@ export default function EventCard({ id, heading, date, location, img, status }) 
 
         {/* IMAGE */}
         <Link href={`/events/detail?id=${id}`} className="block">
-          <div className="relative w-full h-52">
+          <div className="relative w-full min-h-[350px]">
             <Image
               src={img || defaultPlaceholder}
               alt={heading}

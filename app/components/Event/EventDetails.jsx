@@ -106,15 +106,21 @@ export default function EventDetails({ event }) {
 
       <h1 className="text-3xl font-bold mb-6 text-gray-900">{event.title}</h1>
 
-      <div className="mb-6 relative w-full h-[400px] rounded-2xl overflow-hidden shadow-md bg-gray-200">
+      {/* --- UPDATED IMAGE SECTION START --- */}
+      {/* Removed fixed height (h-[400px]) and 'relative'. Added w-full. */}
+      <div className="mb-6 w-full rounded-2xl overflow-hidden shadow-md bg-gray-200">
         <Image
           src={event?.image ? `${hostSocket}${event.image}` : defaultPlaceholder}
           alt={event.title || "Event Image"}
-          fill
-          className="object-cover"
+          width={0}
+          height={0}
+          sizes="100vw"
+          // This style makes the height auto-adjust based on width (100%)
+          style={{ width: '100%', height: 'auto' }}
           priority
         />
       </div>
+      {/* --- UPDATED IMAGE SECTION END --- */}
 
       <div className="bg-white p-6 mb-8 rounded-xl shadow-sm border border-gray-100">
           <h2 className="text-xl font-bold mb-4">Event Details</h2>
@@ -150,9 +156,6 @@ export default function EventDetails({ event }) {
         <div>
           <h2 className="text-2xl font-semibold mb-4 text-gray-900">Speakers</h2>
           
-          {/* DEBUG LINE: Uncomment next line to see raw data on screen if list is empty */}
-          {/* <pre>{JSON.stringify(event.speakers, null, 2)}</pre> */}
-
           {speakerList.length === 0 ? (
             <div className="p-6 bg-white rounded-xl shadow-sm text-center">
               <p className="text-gray-500">No speakers found. (Check console for debug info)</p>
