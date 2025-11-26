@@ -6,8 +6,33 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import ImageUploader from "../Common/ImageUploader";
 
+// --- 1. PREDEFINED LOCATIONS DATA ---
+const PREDEFINED_LOCATIONS = [
+  {
+    name: "Nagar Auditorium",
+    lat: "22.381599362662463",
+    long: "73.14314073548469",
+  },
+  {
+    name: "SOT Auditorium",
+    lat: "22.385636040754616",
+    long: "73.14493074913331",
+  },
+  {
+    name: "Anviksha Building",
+    lat: "22.3862105355751",
+    long: "73.14561660211221",
+  },
+];
+
 // tiny searchable dropdown (Option C)
-function SearchableDropdown({ items, display, value, onChange, placeholder = "Search..." }) {
+function SearchableDropdown({
+  items,
+  display,
+  value,
+  onChange,
+  placeholder = "Search...",
+}) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef(null);
@@ -86,6 +111,11 @@ export default function CreateEvent() {
   const [speakers, setSpeakers] = useState([]);
   const [selectedSpeakerId, setSelectedSpeakerId] = useState("");
 
+  // --- 2. NEW STATE FOR LOCATION AUTO-FILL ---
+  const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+
   // Load speakers on mount
   useEffect(() => {
     (async () => {
@@ -93,6 +123,26 @@ export default function CreateEvent() {
       setSpeakers(res || []);
     })();
   }, []);
+
+  // --- 3. HANDLE LOCATION CHANGE ---
+  const handleLocationChange = (e) => {
+    const selectedName = e.target.value;
+    setAddress(selectedName);
+
+    // Find the matching location object
+    const locData = PREDEFINED_LOCATIONS.find(
+      (loc) => loc.name === selectedName
+    );
+
+    if (locData) {
+      setLatitude(locData.lat);
+      setLongitude(locData.long);
+    } else {
+      // If they select "Other" or placeholder, clear coordinates or keep them manual
+      setLatitude("");
+      setLongitude("");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -104,19 +154,18 @@ export default function CreateEvent() {
 
     setLoading(true);
     try {
-      // Note: your createEvent() reads many fields from the form.
-      // We add two hidden inputs below:
-      //  - speaker_ids: selectedSpeakerId
-      //  - banner_url: uploadedImageUrl (backend may ignore if unsupported)
       await createEvent(
         e,
         () => toast.success("Event created successfully!"),
         (error) => toast.error(error?.message || "Failed to create event")
       );
-      // reset after success (optional)
+      // reset after success
       e.target.reset();
       setUploadedImageUrl("");
       setSelectedSpeakerId("");
+      setAddress(""); // Reset location state
+      setLatitude("");
+      setLongitude("");
     } finally {
       setLoading(false);
     }
@@ -129,7 +178,7 @@ export default function CreateEvent() {
     <div className="max-w-4xl mx-auto p-6 bg-white shadow-md rounded-lg mt-6">
       <h2 className="text-2xl font-bold mb-6 text-gray-800">Create Event</h2>
 
-      {/* Image upload (optional but recommended) */}
+      {/* Image upload */}
       <div className="mb-6">
         <ImageUploader onUploadSuccess={setUploadedImageUrl} />
         {uploadedImageUrl && (
@@ -140,8 +189,12 @@ export default function CreateEvent() {
       </div>
 
       <form id="createEvent" onSubmit={handleSubmit} className="space-y-6">
-        {/* Hidden: pass selected speaker & banner to your existing createEvent() */}
-        <input type="hidden" name="speaker_ids" value={selectedSpeakerId || ""} />
+        {/* Hidden inputs */}
+        <input
+          type="hidden"
+          name="speaker_ids"
+          value={selectedSpeakerId || ""}
+        />
         <input type="hidden" name="banner_url" value={uploadedImageUrl || ""} />
 
         {/* Mandatory Toggle */}
@@ -157,7 +210,10 @@ export default function CreateEvent() {
 
         {/* Title */}
         <div>
-          <label htmlFor="title" className="block text-gray-700 font-medium mb-1">
+          <label
+            htmlFor="title"
+            className="block text-gray-700 font-medium mb-1"
+          >
             Title <span className="text-red-500">*</span>
           </label>
           <input
@@ -198,7 +254,10 @@ export default function CreateEvent() {
           </div>
 
           <div className="mt-4">
-            <label htmlFor="learning_outcomes" className="block text-gray-700 mb-1">
+            <label
+              htmlFor="learning_outcomes"
+              className="block text-gray-700 mb-1"
+            >
               Learning Outcomes <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -240,20 +299,29 @@ export default function CreateEvent() {
           </div>
         </div>
 
-        {/* Location */}
-        <fieldset className="border border-gray-200 p-4 rounded">
+        {/* --- 4. LOCATION DROPDOWN & AUTO-FILL --- */}
+        <fieldset className="border border-gray-200 p-4 rounded bg-gray-50">
           <legend className="font-semibold text-gray-700">Location</legend>
 
           <div className="mt-2">
             <label htmlFor="address" className="block text-gray-700 mb-1">
-              Address *
+              Address / Venue <span className="text-red-500">*</span>
             </label>
-            <input
+            <select
               id="address"
               name="address"
               required
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
+              value={address}
+              onChange={handleLocationChange}
+              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+            >
+              <option value="">-- Select a Venue --</option>
+              {PREDEFINED_LOCATIONS.map((loc) => (
+                <option key={loc.name} value={loc.name}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -266,7 +334,10 @@ export default function CreateEvent() {
                 id="lat"
                 name="lat"
                 step="any"
-                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                value={latitude}
+                onChange={(e) => setLatitude(e.target.value)}
+                placeholder="Auto-filled"
+                className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
 
@@ -279,7 +350,10 @@ export default function CreateEvent() {
                 id="long"
                 name="long"
                 step="any"
-                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                value={longitude}
+                onChange={(e) => setLongitude(e.target.value)}
+                placeholder="Auto-filled"
+                className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
             </div>
           </div>
@@ -293,7 +367,10 @@ export default function CreateEvent() {
             value={selectedSpeakerId}
             onChange={setSelectedSpeakerId}
             placeholder="Search speaker by name"
-            display={(s) => s?.name || `${s?.first_name || ""} ${s?.last_name || ""}`.trim()}
+            display={(s) =>
+              s?.name ||
+              `${s?.first_name || ""} ${s?.last_name || ""}`.trim()
+            }
           />
           {selectedSpeakerId && (
             <p className="text-sm text-gray-600 mt-2">
