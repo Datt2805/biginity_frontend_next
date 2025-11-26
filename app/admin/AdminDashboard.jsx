@@ -5,23 +5,20 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // --- IMPORTS ---
 import EventsList from '../components/Event/EventsList';
-import CreateEvent from '../../app/components/Event/CreateEvent';
-import CreateSpeaker from '../../app/components/Event/CreateSpeaker';
-// Note: Ensure ChartsPage is pointing to the correct file path in your project
-import ChartsPage from '../components/Event/Classroom'; 
+// RENAMED: Pointing to UpdateEvent component now
+import UpdateEvent from './UpdateEvent'; 
 import VerificationPage from './VerificationPage';
 import { logOutUser } from '@/lib/api';
 
 const AdminDashboard = () => {
-  // Set default tab to 'events' since attendance is removed
   const [activeTab, setActiveTab] = useState('events');
 
   // Check session storage on load to persist tab selection
   useEffect(() => {
     const savedTab = sessionStorage.getItem('teacherActiveTab');
     if (savedTab) {
-      // Ensure we don't try to load removed tabs
-      if (savedTab !== 'attendance' && savedTab !== 'classroom') {
+      // Valid tabs only
+      if (['events', 'update-event', 'verification'].includes(savedTab)) {
         setActiveTab(savedTab);
       }
     }
@@ -37,16 +34,13 @@ const AdminDashboard = () => {
     switch (activeTab) {
       case "events":
         return <EventsList />;
-      case 'create-event':
-        return <CreateEvent />;
-      case 'create-speaker':
-        return <CreateSpeaker />;
-      case 'charts':
-        return <ChartsPage />; 
-      case 'verification': // Fixed: This was labeled 'charts' in your previous code
-        return <VerificationPage />; 
+      case 'update-event':
+        // You may need to pass an eventId here or handle selection logic inside this component
+        return <UpdateEvent />;
+      case 'verification':
+        return <VerificationPage />;
       default:
-        return <EventsList />; // Default fall back
+        return <EventsList />;
     }
   };
 
@@ -75,13 +69,9 @@ const AdminDashboard = () => {
 
       {/* -------------------- TAB NAVIGATION -------------------- */}
       <div className="flex flex-wrap justify-center md:justify-start border-b border-gray-300 mb-6">
-
         {[
-          // Removed Attendance and Classroom items
           { id: "events", label: "All Events" },
-          { id: 'create-event', label: 'Create Event' },
-          { id: 'create-speaker', label: 'Register Speaker' },
-          { id: 'charts', label: 'Charts' }, 
+          { id: 'update-event', label: 'Update Event Details' },
           { id: 'verification', label: 'Verification' },
         ].map((tab) => (
           <button
@@ -97,7 +87,6 @@ const AdminDashboard = () => {
             {tab.label}
           </button>
         ))}
-
       </div>
 
       {/* -------------------- MAIN CONTENT -------------------- */}
