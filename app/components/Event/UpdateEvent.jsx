@@ -165,7 +165,7 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState(defaultEvent.image || "");
   const [speakers, setSpeakers] = useState(defaultEvent.speakers || []);
-  const [selectedSpeakerId, setSelectedSpeakerId] = useState("");
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState(defaultEvent?.speakers?.[0] || "");
 
   // --- 2. NEW STATE FOR LOCATION AUTO-FILL ---
   const [address, setAddress] = useState(defaultEvent.address || "");
@@ -179,6 +179,7 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
         try {
           const res = await fetchSpeakersOnly();
           setSpeakers(res || []);
+          handleLocationChange({ target: { value: defaultEvent.address || "" } }); // Initialize location fields
         } catch (error) {
           console.error("Failed to fetch speakers:", error);
           toast.error("Failed to load speakers.");
@@ -265,7 +266,7 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
             name="event_id"
             value={existingEvent._id}
           />
-          <input type="hidden" name="banner_url" value={uploadedImageUrl || ""} />
+          <input type="hidden" name="image" value={uploadedImageUrl || ""} />
           <input type="hidden" name="event_id" value={defaultEvent._id} /> {/* Assuming _id exists */}
 
           {/* Mandatory Toggle */}
