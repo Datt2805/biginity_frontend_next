@@ -223,7 +223,7 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
           toast.success("Event updated successfully!");
           // Close modal on success
           onClose();
-          setTimeout(redirect("/admin/events"), 200)
+          setTimeout(()=>window.location.reload(), 200); // Refresh to show updated event
         },
         (error) => toast.error(error?.message || "Failed to update event")
       );
