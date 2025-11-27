@@ -1,16 +1,16 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // --- IMPORTS ---
-import EventsList from '../components/Event/EventsList';
 import CreateEvent from '../../app/components/Event/CreateEvent';
 import CreateSpeaker from '../../app/components/Event/CreateSpeaker';
+import EventsList from '../components/Event/EventsList';
 // Note: Ensure ChartsPage is pointing to the correct file path in your project
-import ChartsPage from '../components/Event/Classroom'; 
-import VerificationPage from './VerificationPage';
 import { logOutUser } from '@/lib/api';
+import ChartsPage from '../components/Event/Classroom';
+import VerificationPage from './VerificationPage';
 
 const AdminDashboard = () => {
   // Set default tab to 'events' since attendance is removed
@@ -39,8 +39,6 @@ const AdminDashboard = () => {
         return <EventsList />;
       case 'create-event':
         return <CreateEvent />;
-      case 'create-speaker':
-        return <CreateSpeaker />;
       case 'charts':
         return <ChartsPage />; 
       case 'verification': // Fixed: This was labeled 'charts' in your previous code

@@ -1,18 +1,22 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
+import { fetchUserDetail, hostSocket, makeSecureRequest } from "@/lib/api";
 import defaultPlaceholder from "@/public/logo.png";
-import { fetchUserDetail, makeSecureRequest, hostSocket } from "@/lib/api";
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
-const isLoggedIn = await fetchUserDetail();
 
 export default function EventCard({ id, heading, date, location, img, status }) {
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  useEffect(()=>{
+    fetchUserDetail().then(usr=>setIsLoggedIn(usr));
+  },[])
+  
   return (
     <div className="w-full p-3">
       <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group h-full flex flex-col relative">
-
         {/* STATUS BADGE */}
         {status && (
           <span
