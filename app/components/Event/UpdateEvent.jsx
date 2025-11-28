@@ -26,7 +26,20 @@ const PREDEFINED_LOCATIONS = [
     name: "Anviksha Building",
     lat: "22.3862105355751",
     long: "73.14561660211221",
+  }, {
+    name: "SOS Building",
+    lat: "22.382901016778522",
+    long: "73.14696416837283"
   },
+  {
+    name: "Aangava",
+    lat: "22.385277259337578",
+    long: "73.14446294649058"
+  }, {
+    name: "Basket Ball Court ( Aangava )",
+    lat: "22.385232418863385",
+    long: "73.14407034812744"
+  }
 ];
 
 // Reusable Modal Wrapper Component
@@ -224,7 +237,7 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
           toast.success("Event updated successfully!");
           // Close modal on success
           onClose();
-          setTimeout(()=>window.location.reload(), 200); // Refresh to show updated event
+          setTimeout(() => window.location.reload(), 200); // Refresh to show updated event
         },
         (error) => toast.error(error?.message || "Failed to update event")
       );
