@@ -21,7 +21,7 @@ export default function EventsList() {
   // requestId ensures we only accept the latest response
   const requestIdRef = useRef(0);
 
-  useEffect(() => {
+useEffect(() => {
     const currentRequestId = ++requestIdRef.current;
     let aborted = false;
 
@@ -36,14 +36,18 @@ export default function EventsList() {
           data = await getEvents();
         } else {
           const route = EVENT_ROUTES[filter] || EVENT_ROUTES.all;
-          // Use makeRequest; makeRequest should support aborting if necessary.
           data = await makeRequest(`${hostSocket}${route}`, "GET");
         }
 
-        // If a newer request was started, ignore this result
         if (aborted || currentRequestId !== requestIdRef.current) return;
 
         const eventsArr = Array.isArray(data) ? data : data?.events || [];
+        
+        eventsArr.sort((a, b) => {
+          const dateA = new Date(a.start_time || 0);
+          const dateB = new Date(b.start_time || 0);
+          return dateB - dateA; 
+        });
         setEvents(eventsArr);
       } catch (err) {
         if (aborted || currentRequestId !== requestIdRef.current) return;

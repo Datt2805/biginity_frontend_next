@@ -6,7 +6,7 @@ export default function ShowNavbar({ children }) {
   const pathname = usePathname() || "";
 
   // Routes to hide navbar
-  const hidePrefix = ["/teacher", "/student", "/admin"]; // ← ADD ADMIN HERE
+  const hidePrefix = ["/teacher", "/student", "/admin", "/speaker"]; // ← ADD ADMIN HERE
 
   const hideEventDetail = pathname.startsWith("/events/detail");
 

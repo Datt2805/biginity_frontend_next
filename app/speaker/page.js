@@ -1,4 +1,13 @@
-// app/speaker/page.jsx
-export default function SpeakerPage() {
-  return <h1 className="text-2xl">Welcome Speaker 🎤</h1>;
-}
+import React from 'react';
+import SpeakerDashboard from './SpeakerDashboard';
+
+export const metadata = {
+  title: 'Speaker Dashboard',
+};
+const SpeakerPage = () => {
+  return (
+    <SpeakerDashboard />
+  );
+};
+
+export default SpeakerPage;

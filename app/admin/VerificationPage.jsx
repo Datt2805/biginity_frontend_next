@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { verifyTeacher, getPendingTeachers } from "@/lib/api";
-import { logOutUser } from "@/lib/api";
 
 export default function TeacherVerificationPage() {
   const [pendingTeachers, setPendingTeachers] = useState([]);
@@ -59,18 +58,6 @@ export default function TeacherVerificationPage() {
         <h1 className="text-2xl font-semibold text-gray-800">
           Pending Teacher Verifications
         </h1>
-
-        <button
-          onClick={logOutUser.handler(
-            () => {
-              window.location.href = "/LoginSignUp";
-            },
-            (err) => console.error(err)
-          )}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg shadow transition-all duration-300"
-        >
-          Logout
-        </button>
       </div>
 
       {/* Card */}
