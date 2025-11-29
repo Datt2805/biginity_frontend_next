@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createEvent } from "../../../lib/api";
-import { fetchSpeakersOnly } from "../../../lib/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { createEvent, fetchSpeakersOnly } from "../../../lib/api";
 import ImageUploader from "../Common/ImageUploader";
 
 // --- 1. PREDEFINED LOCATIONS DATA ---
@@ -23,6 +22,20 @@ const PREDEFINED_LOCATIONS = [
     lat: "22.3862105355751",
     long: "73.14561660211221",
   },
+  {
+    name: "SOS Building",
+    lat: "22.382901016778522",
+    long: "73.14696416837283"
+  },
+  {
+    name: "Aangava",
+    lat: "22.385277259337578",
+    long: "73.14446294649058"
+  }, {
+    name: "Basket Ball Court ( Aangava )",
+    lat: "22.385232418863385",
+    long: "73.14407034812744"
+  }
 ];
 
 // tiny searchable dropdown (Option C)
@@ -53,8 +66,8 @@ function SearchableDropdown({
     const sel = items.find((it) => value && it?._id === value);
     return sel
       ? display(sel) ||
-          sel?.name ||
-          `${sel?.first_name || ""} ${sel?.last_name || ""}`.trim()
+      sel?.name ||
+      `${sel?.first_name || ""} ${sel?.last_name || ""}`.trim()
       : "";
   }, [items, value, display]);
 

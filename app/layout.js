@@ -3,9 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 // ✅ Wrap UI with ClientOnly
+import { SocketProvider } from "../lib/api/initSocket";
 import ClientOnly from "./components/ClientOnly";
 import ShowNavbar from "./components/ShowNavbar";
-import { SocketProvider } from "../lib/api/initSocket";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

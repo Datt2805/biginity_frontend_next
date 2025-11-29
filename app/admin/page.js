@@ -1,4 +1,3 @@
-import React from 'react';
 import AdminPage from '@/app/admin/AdminDashboard';
 // Set up metadata if needed
 export const metadata = {

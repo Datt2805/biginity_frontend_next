@@ -1,14 +1,23 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // --- IMPORTS ---
+<<<<<<< HEAD
 import EventsList from '../components/Event/EventsList';
 // RENAMED: Pointing to UpdateEvent component now
 import UpdateEvent from './UpdateEvent'; 
 import VerificationPage from './VerificationPage';
+=======
+import CreateEvent from '../../app/components/Event/CreateEvent';
+import CreateSpeaker from '../../app/components/Event/CreateSpeaker';
+import EventsList from '../components/Event/EventsList';
+// Note: Ensure ChartsPage is pointing to the correct file path in your project
+>>>>>>> 642e10cb844b2441a94250e2382f412e770c7391
 import { logOutUser } from '@/lib/api';
+import ChartsPage from '../components/Event/Classroom';
+import VerificationPage from './VerificationPage';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('events');
@@ -34,11 +43,20 @@ const AdminDashboard = () => {
     switch (activeTab) {
       case "events":
         return <EventsList />;
+<<<<<<< HEAD
       case 'update-event':
         // You may need to pass an eventId here or handle selection logic inside this component
         return <UpdateEvent />;
       case 'verification':
         return <VerificationPage />;
+=======
+      case 'create-event':
+        return <CreateEvent />;
+      case 'charts':
+        return <ChartsPage />; 
+      case 'verification': // Fixed: This was labeled 'charts' in your previous code
+        return <VerificationPage />; 
+>>>>>>> 642e10cb844b2441a94250e2382f412e770c7391
       default:
         return <EventsList />;
     }

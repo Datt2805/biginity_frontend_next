@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 // import { useSearchParams } from "next/navigation";
+import Loader from "@/app/components/Common/Loader";
 import EventDetails from "@/app/components/Event/EventDetails";
 import {
-  makeRequest,
-  hostSocket,
-  makeSecureRequest,
   fetchUserDetail,
+  getUserBy,
+  getUsers,
+  hostSocket,
+  makeRequest,
+  makeSecureRequest,
 } from "@/lib/api";
-import Loader from "@/app/components/Common/Loader";
 
 export default function EventDetailPage() {
   const params = Object.fromEntries(
@@ -42,10 +44,7 @@ export default function EventDetailPage() {
           speakers = await Promise.all(
             eventData.speaker_ids.map(async (id) => {
               try {
-                return await makeSecureRequest(
-                  `${hostSocket}/api/users/${id}`,
-                  "GET"
-                );
+                return (await getUserBy({ user_id: id })) || null;
               } catch (err) {
                 console.error("Error fetching speaker", id, err);
                 return null;
