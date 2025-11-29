@@ -38,69 +38,123 @@ const PREDEFINED_LOCATIONS = [
   }
 ];
 
-// tiny searchable dropdown (Option C)
+// MODIFIED SearchableDropdown component for multi-selection
 function SearchableDropdown({
   items,
   display,
-  value,
+  value, // Value is now expected to be a string (single) or an array of strings (multiple)
   onChange,
   placeholder = "Search...",
+  multiple = false, // New prop to enable multi-select
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef(null);
 
+  // Helper to safely get the name string
+  const getLabel = (item) => {
+    return (
+      display(item) ||
+      item?.name ||
+      `${item?.first_name || ""} ${item?.last_name || ""}`.trim()
+    );
+  };
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return items;
     return items.filter((it) => {
-      const name =
-        display(it) ||
-        it?.name ||
-        `${it?.first_name || ""} ${it?.last_name || ""}`.trim();
+      // If multiple, hide items that are already selected
+      if (multiple && Array.isArray(value) && value.includes(it._id)) {
+        return false;
+      }
+      if (!q) return true;
+      const name = getLabel(it);
       return (name || "").toLowerCase().includes(q);
     });
-  }, [items, query, display]);
+  }, [items, query, display, value, multiple]);
 
   const selectedLabel = useMemo(() => {
+    // If multiple, we don't show a single label in the input
+    if (multiple) return "";
+
     const sel = items.find((it) => value && it?._id === value);
-    return sel
-      ? display(sel) ||
-      sel?.name ||
-      `${sel?.first_name || ""} ${sel?.last_name || ""}`.trim()
-      : "";
-  }, [items, value, display]);
+    return sel ? getLabel(sel) : "";
+  }, [items, value, display, multiple]);
 
   const commitSelection = (id) => {
-    onChange?.(id);
-    setOpen(false);
-    setQuery("");
+    if (multiple) {
+      const current = Array.isArray(value) ? value : [];
+      // Add only if not already there
+      if (!current.includes(id)) {
+        onChange?.([...current, id]);
+      }
+      setQuery(""); // Clear query to keep typing
+      inputRef.current?.focus(); // Keep focus
+    } else {
+      // Existing single select logic
+      onChange?.(id);
+      setOpen(false);
+      setQuery("");
+    }
+  };
+
+  const removeSelection = (e, idToRemove) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (multiple && Array.isArray(value)) {
+      onChange?.(value.filter((id) => id !== idToRemove));
+    }
   };
 
   return (
     <div className="relative">
+      {/* Tags for Multiple Selection */}
+      {multiple && Array.isArray(value) && value.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {value.map((id) => {
+            const item = items.find((it) => it._id === id);
+            if (!item) return null;
+            return (
+              <span
+                key={id}
+                className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-800 text-sm"
+              >
+                {getLabel(item)}
+                <button
+                  type="button"
+                  onClick={(e) => removeSelection(e, id)}
+                  className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none font-bold"
+                >
+                  &times;
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="text"
         placeholder={placeholder}
-        value={open ? query : selectedLabel}
+        value={multiple ? query : open ? query : selectedLabel}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setOpen(true)}
+        onBlur={() => {
+            // Give a slight delay before closing, so that clicks on dropdown items can register
+            setTimeout(() => setOpen(false), 100);
+        }}
         className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
       {open && (
         <div
           className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded shadow max-h-60 overflow-auto"
-          onMouseDown={(e) => e.preventDefault()} // keep input focus
         >
           {filtered.length === 0 && (
             <div className="px-3 py-2 text-sm text-gray-500">No results</div>
           )}
           {filtered.map((it) => {
-            const label =
-              display(it) ||
-              it?.name ||
-              `${it?.first_name || ""} ${it?.last_name || ""}`.trim();
+            const label = getLabel(it);
             return (
               <button
                 key={it._id}
@@ -118,11 +172,14 @@ function SearchableDropdown({
   );
 }
 
+// MODIFIED COMPONENT: CreateEvent
 export default function CreateEvent() {
   const [loading, setLoading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState("");
   const [speakers, setSpeakers] = useState([]);
-  const [selectedSpeakerId, setSelectedSpeakerId] = useState("");
+  
+  // MODIFIED: Initialize state for speaker IDs as an array
+  const [selectedSpeakerIds, setSelectedSpeakerIds] = useState([]);
 
   // --- 2. NEW STATE FOR LOCATION AUTO-FILL ---
   const [address, setAddress] = useState("");
@@ -160,8 +217,9 @@ export default function CreateEvent() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!selectedSpeakerId) {
-      toast.error("Please select a speaker");
+    // MODIFIED: Validation now checks if the array is empty
+    if (selectedSpeakerIds.length === 0) {
+      toast.error("Please select at least one speaker");
       return;
     }
 
@@ -172,20 +230,19 @@ export default function CreateEvent() {
         () => toast.success("Event created successfully!"),
         (error) => toast.error(error?.message || "Failed to create event")
       );
+      
       // reset after success
       e.target.reset();
       setUploadedImageUrl("");
-      setSelectedSpeakerId("");
-      setAddress(""); // Reset location state
+      // Reset the new multi-select state
+      setSelectedSpeakerIds([]); 
+      setAddress(""); 
       setLatitude("");
       setLongitude("");
     } finally {
       setLoading(false);
     }
   };
-
-  const nameOf = (s) =>
-    s?.name || `${s?.first_name || ""} ${s?.last_name || ""}`.trim();
 
   return (
     <div className="max-w-4xl mx-auto p-6 bg-white shadow-md rounded-lg mt-6">
@@ -206,7 +263,8 @@ export default function CreateEvent() {
         <input
           type="hidden"
           name="speaker_ids"
-          value={selectedSpeakerId || ""}
+          // MODIFIED: Join the array of IDs into a comma-separated string for form submission
+          value={selectedSpeakerIds.join(",") || ""}
         />
         <input type="hidden" name="banner_url" value={uploadedImageUrl || ""} />
 
@@ -372,22 +430,23 @@ export default function CreateEvent() {
           </div>
         </fieldset>
 
-        {/* Speaker (Searchable Dropdown) */}
+        {/* Speaker (Searchable Dropdown) - MODIFIED USAGE */}
         <div>
           <label className="block text-gray-700 mb-1">Speaker</label>
           <SearchableDropdown
             items={speakers}
-            value={selectedSpeakerId}
-            onChange={setSelectedSpeakerId}
+            value={selectedSpeakerIds} // Pass array state
+            onChange={setSelectedSpeakerIds} // Handles array updates
+            multiple={true} // Enable multi-select
             placeholder="Search speaker by name"
             display={(s) =>
               s?.name ||
               `${s?.first_name || ""} ${s?.last_name || ""}`.trim()
             }
           />
-          {selectedSpeakerId && (
+          {selectedSpeakerIds.length > 0 && ( // Display count
             <p className="text-sm text-gray-600 mt-2">
-              Selected: {nameOf(speakers.find((s) => s._id === selectedSpeakerId))}
+              Selected: {selectedSpeakerIds.length} speaker(s)
             </p>
           )}
         </div>

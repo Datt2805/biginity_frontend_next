@@ -5,6 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 // import { createEvent, fetchSpeakersOnly, updateEvent } from "../../../lib/api"; // Keep your imports
 import { getUsers, updateEvent } from "@/lib/api";
+import { toYYYY_MM_DD_T_HH_mm } from '@/lib/api/utils';
 import ImageUploader from "../Common/ImageUploader";
 
 // Mock API functions for demonstration - replace with your actual imports
@@ -78,52 +79,106 @@ function ModalWrapper({ isOpen, onClose, children, title = "Modal" }) {
   );
 }
 
-// tiny searchable dropdown (Option C) - UNMODIFIED
+// MODIFIED SearchableDropdown component for multi-selection
 function SearchableDropdown({
   items,
   display,
-  value,
+  value, // Value is now expected to be a string (single) or an array of strings (multiple)
   onChange,
   placeholder = "Search...",
+  multiple = false, // New prop to enable multi-select
 }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const inputRef = useRef(null);
 
+  // Helper to safely get the name string
+  const getLabel = (item) => {
+    return (
+      display(item) ||
+      item?.name ||
+      `${item?.first_name || ""} ${item?.last_name || ""}`.trim()
+    );
+  };
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    if (!q) return items;
     return items.filter((it) => {
-      const name =
-        display(it) ||
-        it?.name ||
-        `${it?.first_name || ""} ${it?.last_name || ""}`.trim();
+      // If multiple, hide items that are already selected
+      if (multiple && Array.isArray(value) && value.includes(it._id)) {
+        return false;
+      }
+      if (!q) return true;
+      const name = getLabel(it);
       return (name || "").toLowerCase().includes(q);
     });
-  }, [items, query, display]);
+  }, [items, query, display, value, multiple]);
 
   const selectedLabel = useMemo(() => {
+    // If multiple, we don't show a single label in the input
+    if (multiple) return "";
+
     const sel = items.find((it) => value && it?._id === value);
-    return sel
-      ? display(sel) ||
-      sel?.name ||
-      `${sel?.first_name || ""} ${sel?.last_name || ""}`.trim()
-      : "";
-  }, [items, value, display]);
+    return sel ? getLabel(sel) : "";
+  }, [items, value, display, multiple]);
 
   const commitSelection = (id) => {
-    onChange?.(id);
-    setOpen(false);
-    setQuery("");
+    if (multiple) {
+      const current = Array.isArray(value) ? value : [];
+      // Add only if not already there
+      if (!current.includes(id)) {
+        onChange?.([...current, id]);
+      }
+      setQuery(""); // Clear query to keep typing
+      inputRef.current?.focus(); // Keep focus
+    } else {
+      // Existing single select logic
+      onChange?.(id);
+      setOpen(false);
+      setQuery("");
+    }
+  };
+
+  const removeSelection = (e, idToRemove) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (multiple && Array.isArray(value)) {
+      onChange?.(value.filter((id) => id !== idToRemove));
+    }
   };
 
   return (
     <div className="relative">
+      {/* Tags for Multiple Selection */}
+      {multiple && Array.isArray(value) && value.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {value.map((id) => {
+            const item = items.find((it) => it._id === id);
+            if (!item) return null;
+            return (
+              <span
+                key={id}
+                className="inline-flex items-center px-2 py-1 rounded bg-blue-100 text-blue-800 text-sm"
+              >
+                {getLabel(item)}
+                <button
+                  type="button"
+                  onClick={(e) => removeSelection(e, id)}
+                  className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none font-bold"
+                >
+                  &times;
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="text"
         placeholder={placeholder}
-        value={open ? query : selectedLabel}
+        value={multiple ? query : open ? query : selectedLabel}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setOpen(true)}
         className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -137,10 +192,7 @@ function SearchableDropdown({
             <div className="px-3 py-2 text-sm text-gray-500">No results</div>
           )}
           {filtered.map((it) => {
-            const label =
-              display(it) ||
-              it?.name ||
-              `${it?.first_name || ""} ${it?.last_name || ""}`.trim();
+            const label = getLabel(it);
             return (
               <button
                 key={it._id}
@@ -159,26 +211,40 @@ function SearchableDropdown({
 }
 
 // CONVERTED COMPONENT: UpdateEventModal
-// It now accepts props to manage its modal state.
 export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
-  // Use a default event structure to prevent errors if existingEvent is undefined
-  const defaultEvent = useMemo(() => ({
-    title: "",
-    image: "",
-    speakers: [],
-    address: "",
-    lat: "",
-    long: "",
-    start_time: new Date().toISOString().substring(0, 16),
-    end_time: new Date().toISOString().substring(0, 16),
-    description: { detail: "", objectives: [], learning_outcomes: [] },
-    ...existingEvent
-  }), [existingEvent]);
+
+  console.log(existingEvent)
+  console.log(new Date(existingEvent.start_time))
+  console.log(new Date(existingEvent.start_time).toISOString()) // result = 22/9/2025, 10:00:00 am
+  console.log(toYYYY_MM_DD_T_HH_mm(existingEvent.start_time))
+  /**
+   * Note: With a datetime-local input, the date value is always normalized to the format YYYY-MM-DDTHH:mm.
+   */
+
+  // Use a default event structure and extract speaker IDs for the multi-select state
+  const defaultEvent = useMemo(() => {
+    // Extract speaker IDs from the existing speaker objects
+    const speakerIds = existingEvent?.speakers?.map(s => s._id) || [];
+    
+    return {
+      title: "",
+      image: "",
+      speakers: [], // Keep full speaker objects for display logic if needed later
+      address: "",
+      lat: "",
+      long: "",
+      description: { detail: "", objectives: [], learning_outcomes: [] },
+      ...existingEvent,
+      initialSpeakerIds: speakerIds, // Store just the IDs for the multi-select state
+    };
+  }, [existingEvent]);
 
   const [loading, setLoading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState(defaultEvent.image || "");
   const [speakers, setSpeakers] = useState(defaultEvent.speakers || []);
-  const [selectedSpeakerId, setSelectedSpeakerId] = useState(defaultEvent?.speakers?.[0] || "");
+  
+  // State initialized as an array of IDs from the existing event
+  const [selectedSpeakerIds, setSelectedSpeakerIds] = useState(defaultEvent.initialSpeakerIds || []);
 
   // --- 2. NEW STATE FOR LOCATION AUTO-FILL ---
   const [address, setAddress] = useState(defaultEvent.address || "");
@@ -224,8 +290,9 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!selectedSpeakerId) {
-      toast.error("Please select a speaker");
+    // Validation: Check if the array is empty
+    if (!selectedSpeakerIds || selectedSpeakerIds.length === 0) {
+      toast.error("Please select at least one speaker");
       return;
     }
 
@@ -272,7 +339,8 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
           <input
             type="hidden"
             name="speaker_ids"
-            value={selectedSpeakerId || ""}
+            // MODIFIED: Join array of IDs into a comma-separated string for form submission
+            value={selectedSpeakerIds.join(",") || ""}
           />
           <input
             type="hidden"
@@ -369,7 +437,7 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
                 id="start_time"
                 name="start_time"
                 // Format the ISO string to be compatible with datetime-local input
-                defaultValue={defaultEvent.start_time ? new Date(defaultEvent.start_time).toISOString().substring(0, 16) : ""}
+                defaultValue={defaultEvent.start_time ? toYYYY_MM_DD_T_HH_mm(defaultEvent.start_time): ""}
                 required
                 className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
@@ -383,7 +451,7 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
                 type="datetime-local"
                 id="end_time"
                 name="end_time"
-                defaultValue={defaultEvent.end_time ? new Date(defaultEvent.end_time).toISOString().substring(0, 16) : ""}
+                defaultValue={defaultEvent.end_time ? toYYYY_MM_DD_T_HH_mm(defaultEvent.end_time) : ""}
                 required
                 className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
@@ -452,26 +520,27 @@ export default function UpdateEventModal({ existingEvent, isOpen, onClose }) {
             </div>
           </fieldset>
 
-          {/* Speaker (Searchable Dropdown) */}
+          {/* Speaker (Searchable Dropdown) - MODIFIED USAGE */}
           <div>
             <label className="block text-gray-700 mb-1">Speaker</label>
             <SearchableDropdown
               items={speakers}
-              value={selectedSpeakerId}
-              onChange={setSelectedSpeakerId}
+              value={selectedSpeakerIds} // Pass array
+              onChange={setSelectedSpeakerIds} // Handles array update
+              multiple={true} // Enable multiple selection
               placeholder="Search speaker by name"
               display={(s) =>
                 s?.name ||
                 `${s?.first_name || ""} ${s?.last_name || ""}`.trim()
               }
             />
-            {selectedSpeakerId && (
+            {selectedSpeakerIds.length > 0 && ( // Check length
               <p className="text-sm text-gray-600 mt-2">
-                Selected: {nameOf(speakers.find((s) => s._id === selectedSpeakerId))}
+                Selected: {selectedSpeakerIds.length} speaker(s)
               </p>
             )}
           </div>
-
+            
           {/* Submit */}
           <button
             type="submit"
