@@ -32,76 +32,105 @@ export default function TeacherVerificationPage() {
     }
   }
 
-  // Clean toast replacement (no external library)
+  // Clean toast replacement (Styling updated for modern look)
   function toastMessage(msg, type) {
-    const bg = type === "success" ? "bg-green-600" : "bg-red-600";
+    const bg = type === "success" ? "bg-emerald-600" : "bg-rose-600";
     const toast = document.createElement("div");
 
-    toast.className = `${bg} text-white px-4 py-2 rounded shadow fixed top-5 right-5 animate-fade-in-out`;
-    toast.innerText = msg;
+    // Updated classes for a floating, modern pill look
+    toast.className = `${bg} text-white px-6 py-3 rounded-full shadow-xl fixed top-6 right-6 z-50 flex items-center gap-2 font-medium text-sm transition-all duration-300 animate-[slideIn_0.3s_ease-out]`;
+    
+    // Add simple icon based on type
+    const icon = type === "success" 
+        ? '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>' 
+        : '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>';
+
+    toast.innerHTML = `${icon} <span>${msg}</span>`;
 
     document.body.appendChild(toast);
+    
+    // Slide out animation before removal
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-20px)';
+    }, 2200);
+
     setTimeout(() => toast.remove(), 2500);
   }
 
   if (loading)
     return (
-      <div className="flex justify-center items-center h-[60vh]">
-        <div className="text-lg font-medium animate-pulse">Loading...</div>
+      <div className="flex flex-col justify-center items-center h-[60vh] space-y-4">
+        <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+        <div className="text-slate-500 font-medium text-sm animate-pulse">Fetching records...</div>
       </div>
     );
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50">
-      {/* Top Bar */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-800">
-          Pending Teacher Verifications
+    <div className="min-h-full bg-transparent">
+      
+      {/* Header Section */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+            <span className="p-2 bg-amber-100 rounded-lg text-amber-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </span>
+            Pending Verifications
         </h1>
+        <p className="text-slate-500 mt-1 ml-12 text-sm">Review and approve teacher account requests.</p>
       </div>
 
-      {/* Card */}
-      <div className="bg-white shadow-md rounded-xl p-6">
+      {/* Main Card */}
+      <div className="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            {/* Header */}
+          <table className="w-full text-left border-collapse">
+            
+            {/* Table Header */}
             <thead>
-              <tr className="bg-gray-100 text-left text-gray-700">
-                <th className="p-3 font-medium border-b">Name</th>
-                <th className="p-3 font-medium border-b">Email</th>
-                <th className="p-3 font-medium border-b">Status</th>
-                <th className="p-3 font-medium border-b">Action</th>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-1/3">Name</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-1/3">Email</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-1/6">Status</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right w-1/6">Action</th>
               </tr>
             </thead>
 
-            {/* Body */}
-            <tbody>
+            {/* Table Body */}
+            <tbody className="divide-y divide-slate-100">
               {pendingTeachers.map((t) => (
                 <tr
                   key={t._id}
-                  className="hover:bg-gray-50 transition-all cursor-pointer"
+                  className="hover:bg-slate-50/80 transition-colors duration-150 group"
                 >
-                  <td className="p-3 border-b">{t.name}</td>
-                  <td className="p-3 border-b">{t.email}</td>
-                  <td className="p-3 border-b">
+                  <td className="px-6 py-4">
+                      <div className="font-medium text-slate-900">{t.name}</div>
+                  </td>
+                  <td className="px-6 py-4 text-slate-600">
+                      {t.email}
+                  </td>
+                  <td className="px-6 py-4">
                     <span
-                      className={`px-3 py-1 text-sm rounded-full ${
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
                         t.isVerified
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                          : "bg-amber-50 text-amber-700 border-amber-100"
                       }`}
                     >
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${t.isVerified ? "bg-emerald-500" : "bg-amber-500"}`}></span>
                       {t.isVerified ? "Verified" : "Pending"}
                     </span>
                   </td>
-                  <td className="p-3 border-b">
-                    {!t.isVerified && (
+                  <td className="px-6 py-4 text-right">
+                    {!t.isVerified ? (
                       <button
                         onClick={() => handleVerify(t._id)}
-                        className="bg-green-600 hover:bg-green-700 text-white py-1.5 px-4 rounded-lg shadow-sm transition-all duration-200"
+                        className="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white py-1.5 px-4 rounded-lg text-xs font-semibold shadow-sm hover:shadow transition-all duration-200 active:scale-95"
                       >
-                        Verify
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        Approve
                       </button>
+                    ) : (
+                        <span className="text-slate-400 text-xs italic">No actions</span>
                     )}
                   </td>
                 </tr>
@@ -111,9 +140,13 @@ export default function TeacherVerificationPage() {
 
           {/* Empty State */}
           {pendingTeachers.length === 0 && (
-            <p className="text-center text-gray-500 py-4">
-              No pending teacher verifications 🎉
-            </p>
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+              <div className="bg-slate-50 p-4 rounded-full mb-4">
+                <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <h3 className="text-lg font-medium text-slate-900">All caught up!</h3>
+              <p className="text-slate-500 max-w-sm mt-1">There are no pending teacher verifications at the moment.</p>
+            </div>
           )}
         </div>
       </div>

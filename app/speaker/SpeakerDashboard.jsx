@@ -1,105 +1,208 @@
 'use client';
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation'; // Use Next.js router
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import EventsList from '../components/Event/EventsList';
-import Classroom from '../components/Event/Classroom';
-import { logOutUser } from '@/lib/api';
+import React, { useState, useEffect } from "react";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { 
+  GraduationCap, 
+  Calendar, 
+  Video, 
+  LogOut, 
+  Loader2,
+  CircleUser 
+} from 'lucide-react'; 
 
-// Define tabs here to avoid typos and mismatched IDs
-const TABS = [
-  { id: 'events', label: 'All Events' },
-  { id: 'classroom', label: 'Classroom' },
-];
+// --- IMPORTS ---
+import EventsList from "../components/Event/EventsList";
+import Classroom from "../components/Event/Classroom";
+import UserProfile from "../components/Common/UserProfile"; 
+import { logOutUser, fetchUserDetail } from "../../lib/api"; 
 
-const AdminDashboard = () => {
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState('events');
+const StudentDashboard = () => {
+  const [activeTab, setActiveTab] = useState("events");
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // 1. UPDATED STATE: Store the full user object, not just the name
+  const [userDetails, setUserDetails] = useState(null);
 
-  // Check session storage on load
+  // Tab Configuration
+  const tabs = [
+    { id: "events", label: "All Events", icon: Calendar },
+    { id: "classroom", label: "Classroom Live", icon: Video },
+    { id: "profile", label: "My Profile", icon: CircleUser },
+  ];
+
+  // 2. FETCH USER DETAILS ON MOUNT
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedTab = sessionStorage.getItem('teacherActiveTab');
-      // Check if the saved tab actually exists in our TABS config
-      const isValidTab = TABS.some((t) => t.id === savedTab);
+    const getUserData = async () => {
+      try {
+        const data = await fetchUserDetail();
+        if (data) {
+           setUserDetails(data); // Save the full object (name, email, role, etc.)
+        }
+      } catch (error) {
+        console.error("Failed to fetch user details", error);
+      }
+    };
+    getUserData();
+  }, []);
+
+  // Check session storage on page load
+  useEffect(() => {
+    const savedTab = sessionStorage.getItem("activeTab");
+    
+    if (savedTab) {
+      setActiveTab(savedTab);
       
-      if (savedTab && isValidTab) {
-        setActiveTab(savedTab);
+      if (savedTab === "classroom") {
+        setIsLoading(true);
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 2000); 
       }
     }
   }, []);
 
   const handleTabChange = (tabId) => {
     if (tabId === activeTab) return;
-    sessionStorage.setItem('teacherActiveTab', tabId);
-    setActiveTab(tabId);
-  };
 
-  const handleLogout = async () => {
-    // Assuming logOutUser.handler returns a function. 
-    // If not, wrap the logic directly here.
-    try {
-        await logOutUser.handler(() => {}, () => {}); // specific to your API
-        sessionStorage.clear();
-        router.push('/LoginSignUp'); // Faster than window.location
-    } catch (error) {
-        console.error("Logout failed", error);
+    if (tabId === "classroom") {
+      sessionStorage.setItem("activeTab", "classroom");
+      window.location.reload(); 
+    } else {
+      sessionStorage.setItem("activeTab", tabId);
+      setActiveTab(tabId);
+      setIsLoading(false);
     }
   };
 
   const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col justify-center items-center h-[50vh] text-indigo-600">
+           <Loader2 className="h-16 w-16 animate-spin mb-4" />
+           <h2 className="text-xl font-medium text-slate-600 animate-pulse">
+             Connecting to Live Classroom...
+           </h2>
+        </div>
+      );
+    }
+
     switch (activeTab) {
-      case 'events':
+      case "events":
         return <EventsList />;
-      case 'classroom':
+      case "classroom":
         return <Classroom />;
+      case "profile":              
+        // 3. PASS THE USER DETAILS TO THE PROFILE COMPONENT
+        return <UserProfile user={userDetails} />;  
+      default:
+        return (
+          <div className="text-gray-500 text-center py-10">
+            Select a tab to continue.
+          </div>
+        );
     }
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 font-sans bg-gray-50 min-h-screen">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
       
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl md:text-3xl font-semibold text-gray-800 text-center md:text-left">
-          🎙️ Speaker Dashboard
-        </h1>
+      {/* -------------------- HEADER -------------------- */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            
+            {/* Logo / Title */}
+            <div className="flex items-center gap-2">
+              <div className="bg-indigo-600 p-2 rounded-lg">
+                <GraduationCap className="h-6 w-6 text-white" />
+              </div>
+              
+              {/* 4. DYNAMIC HEADER NAME */}
+              <h1 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+                {/* Checks for name, firstName, or defaults to "Student Portal" */}
+                {userDetails?.name || userDetails?.firstName || "Student Portal"}
+              </h1>
+              
+              {/* Mobile version */}
+              <h1 className="text-lg font-bold text-indigo-700 sm:hidden">
+                {userDetails?.name ? userDetails.name.split(' ')[0] : "Student"}
+              </h1>
+            </div>
 
-        <button
-          onClick={handleLogout}
-          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all duration-300 shadow-sm"
-        >
-          Logout
-        </button>
-      </div>
+            {/* Logout Button */}
+            <button
+              onClick={logOutUser.handler(
+                () => {
+                    sessionStorage.clear(); 
+                    window.location.href = "/LoginSignUp";
+                },
+                (err) => console.error(err)
+              )}
+              className="group flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-full transition-all duration-300"
+            >
+              <span className="hidden sm:block">Logout</span>
+              <LogOut className="h-5 w-5 group-hover:rotate-180 transition-transform duration-500" />
+            </button>
+          </div>
+        </div>
+      </header>
 
-      {/* -------------------- TAB NAVIGATION -------------------- */}
-      <div className="flex flex-wrap justify-center md:justify-start border-b border-gray-300 mb-6">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            className={`flex-1 md:flex-none px-4 py-2 text-sm sm:text-base text-center transition-all duration-300 
-            border-b-4 ${
-              activeTab === tab.id
-                ? 'border-blue-500 font-semibold text-blue-600 bg-blue-50'
-                : 'border-transparent text-gray-600 hover:text-blue-500 hover:bg-gray-100'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        {/* -------------------- TAB NAVIGATION -------------------- */}
+        <div className="mb-8">
+          <nav className="flex space-x-2 overflow-x-auto pb-4 sm:pb-0 scrollbar-hide" aria-label="Tabs">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
 
-      {/* -------------------- MAIN CONTENT -------------------- */}
-      <div className="bg-white rounded-xl shadow-md p-4 sm:p-6 overflow-auto min-h-[400px]">
-        {renderContent()}
-      </div>
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-xl whitespace-nowrap transition-all duration-200
+                    ${isActive 
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200 translate-y-[-2px]' 
+                      : 'bg-white text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 border border-transparent hover:border-indigo-100'
+                    }
+                  `}
+                >
+                  <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-100' : 'text-slate-400'}`} />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
 
-      <ToastContainer />
+        {/* -------------------- MAIN CONTENT AREA -------------------- */}
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 min-h-[500px] relative overflow-hidden">
+           {/* Decorative top border */}
+           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+           
+           <div className="p-4 sm:p-6 lg:p-8">
+             {renderContent()}
+           </div>
+        </div>
+
+      </main>
+
+      <ToastContainer position="bottom-right" theme="colored" />
+      
+      {/* Utility for hiding scrollbar */}
+      <style jsx>{`
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+      `}</style>
     </div>
   );
 };
 
-export default AdminDashboard;
+export default StudentDashboard;

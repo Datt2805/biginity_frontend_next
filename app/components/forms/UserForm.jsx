@@ -24,6 +24,7 @@ const UserForm = ({ defaultType = "register" }) => {
     stream: "",
     enrollmentId: "",
     title: "",
+    school: "",
   });
   const [otpCooldown, setOtpCooldown] = useState(0);
 
@@ -46,7 +47,8 @@ const UserForm = ({ defaultType = "register" }) => {
   };
 
   const handleSubmit = async (e) => {
-    // The API functions will handle e.preventDefault()
+    if (e && e.preventDefault) e.preventDefault();
+
     if (isSignUp) {
       await registerUser(
         e,
@@ -106,22 +108,21 @@ const UserForm = ({ defaultType = "register" }) => {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-gray-100">
-      <main className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 bg-gray-100 font-sans">
+      <main className="flex flex-col md:flex-row w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-300">
+        
         {/* Left Form Section */}
-        <div className="w-full md:w-3/5 p-6 sm:p-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-green-500 mb-4 text-center md:text-left">
-            {isSignUp ? "Create Account" : "Sign In"}
-          </h2>
+        <div className="w-full md:w-3/5 p-8 sm:p-10 flex flex-col justify-center">
+          <div className="mb-8 text-center md:text-left">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-green-500 tracking-tight">
+              {isSignUp ? "Create Account" : "Welcome Back"}
+            </h2>
+            <p className="text-gray-400 mt-2 text-sm">
+                {isSignUp ? "Enter your details to get started" : "Please enter your details to sign in"}
+            </p>
+          </div>
 
-          <form
-            onSubmit={handleSubmit}
-            className={`gap-4 ${
-              isSignUp
-                ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
-                : "flex flex-col gap-4"
-            }`}
-          >
+          <form onSubmit={handleSubmit} className="w-full">
             {isSignUp ? (
               <SignUpForm
                 formData={formData}
@@ -133,36 +134,43 @@ const UserForm = ({ defaultType = "register" }) => {
               <SignInForm formData={formData} handleChange={handleChange} />
             )}
 
-            <button className="w-full mt-4 bg-green-500 text-white rounded-full px-12 py-2 font-semibold hover:bg-white hover:text-black border-2 border-green-500 transition-all duration-200">
+            <button 
+                type="submit"
+                className="w-full mt-6 bg-green-500 text-white rounded-xl px-12 py-3.5 font-bold text-sm tracking-wide hover:bg-green-600 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 active:transform active:scale-95"
+            >
               {isSignUp ? "Sign Up" : "Sign In"}
             </button>
           </form>
         </div>
 
         {/* Right Toggle Section */}
-        <div className="w-full md:w-2/5 bg-green-500 text-white flex flex-col items-center justify-center text-center py-12 px-6 sm:px-10 md:py-20">
-          <h2 className="text-3xl sm:text-4xl font-bold mb-2">
-            {isSignUp ? "Welcome Back!" : "Hello, Friend!"}
+        <div className="w-full md:w-2/5 bg-gradient-to-br from-green-400 to-green-600 text-white flex flex-col items-center justify-center text-center py-12 px-8 relative overflow-hidden">
+            {/* Decorative circles */}
+            <div className="absolute top-0 right-0 -mr-12 -mt-12 w-40 h-40 rounded-full bg-white opacity-10 blur-xl"></div>
+            <div className="absolute bottom-0 left-0 -ml-12 -mb-12 w-40 h-40 rounded-full bg-white opacity-10 blur-xl"></div>
+
+          <h2 className="text-3xl font-bold mb-3 z-10">
+            {isSignUp ? "Have an Account?" : "New Here?"}
           </h2>
-          <div className="border-2 w-10 border-white inline-block mb-4"></div>
-          <p className="mb-6 text-sm sm:text-base">
+          <div className="w-16 h-1 bg-white rounded-full mb-6 opacity-50 z-10"></div>
+          <p className="mb-8 text-green-50 text-sm leading-relaxed max-w-xs z-10">
             {isSignUp
-              ? "Already have an account? Sign in and continue your journey."
-              : "Fill up personal information and start your journey with us."}
+              ? "To keep connected with us please login with your personal info."
+              : "Enter your personal details and start your journey with us today."}
           </p>
           <button
+            type="button"
             onClick={() => setIsSignUp(!isSignUp)}
-            className="border-2 border-white rounded-full px-8 py-2 font-semibold hover:bg-white hover:text-black transition-all duration-200"
+            className="border-2 border-white rounded-full px-10 py-2.5 font-bold text-sm uppercase tracking-wider hover:bg-white hover:text-green-600 transition-all duration-300 z-10 shadow-lg"
           >
             {isSignUp ? "Sign In" : "Sign Up"}
           </button>
         </div>
       </main>
 
-      {/* Toast notifications */}
       <ToastContainer
         position="top-right"
-        autoClose={2000}
+        autoClose={2500}
         hideProgressBar={false}
         newestOnTop
         closeOnClick

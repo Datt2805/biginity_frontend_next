@@ -1,8 +1,15 @@
-'use client';
+"use client";
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { toast } from "react-toastify";
-import { uploadFile } from "../../../lib/api/app-SDK";
+import { uploadFile } from "../../../lib/api/app-SDK"; // Adjust path as needed
+import { 
+  UploadCloud, 
+  X, 
+  Image as ImageIcon, 
+  Check, 
+  Loader2 
+} from "lucide-react";
 
 const ImageUploader = ({ onUploadSuccess }) => {
   const [imagePreview, setImagePreview] = useState(null);
@@ -36,67 +43,113 @@ const ImageUploader = ({ onUploadSuccess }) => {
       return;
     }
     setLoading(true);
+    // Logic preserved exactly for SDK compatibility
     uploadFile.handler(successCallback, errorCallback)(e);
+  };
+
+  const handleRemove = () => {
+    if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+    }
+    setImagePreview(null);
+    setUploadedImageUrl("");
+    onUploadSuccess("");
   };
 
   return (
     <form
       onSubmit={handleUploadSubmit}
-      className="flex flex-col gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200"
+      className="w-full"
     >
-      <label
-        htmlFor="eventImage"
-        className="text-sm font-semibold text-gray-700"
-      >
-        Upload Speaker Image <span className="text-red-500">*</span>
-      </label>
-
-      <input
-        type="file"
-        id="eventImage"
-        name="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        disabled={loading}
-        className="file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-green-100 file:text-green-700 hover:file:bg-green-200 cursor-pointer"
-      />
-
-      {imagePreview && (
-        <div className="flex items-center gap-4 mt-2">
-          <img
-            src={imagePreview}
-            alt="Preview"
-            className="w-20 h-20 object-cover rounded-lg border"
+      {!imagePreview ? (
+        /* --- 1. EMPTY STATE (Upload Trigger) --- */
+        <label
+          htmlFor="eventImage"
+          className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-xl cursor-pointer bg-gray-50 hover:bg-indigo-50 hover:border-indigo-400 transition-all duration-200 group"
+        >
+          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+            <div className="p-3 bg-white rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                <UploadCloud className="w-8 h-8 text-indigo-500" />
+            </div>
+            <p className="mb-1 text-sm text-gray-700 font-medium">
+              <span className="font-semibold text-indigo-600">Click to upload</span> 
+            </p>
+            <p className="text-xs text-gray-500">SVG, PNG, JPG or GIF</p>
+          </div>
+          <input
+            type="file"
+            id="eventImage"
+            name="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            disabled={loading}
+            className="hidden"
           />
-          <button
-            type="button"
-            onClick={() => {
-              URL.revokeObjectURL(imagePreview);
-              setImagePreview(null);
-              setUploadedImageUrl("");
-              onUploadSuccess("");
-            }}
-            className="text-sm text-red-500 hover:text-red-700 font-medium"
-          >
-            Remove
-          </button>
+        </label>
+      ) : (
+        /* --- 2. PREVIEW STATE --- */
+        <div className="relative w-full h-48 rounded-xl overflow-hidden border border-gray-200 group bg-gray-100">
+           {/* Image */}
+           <img
+             src={imagePreview}
+             alt="Preview"
+             className="w-full h-full object-cover"
+           />
+           
+           {/* Overlay Gradient (for text readability) */}
+           <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+
+           {/* Remove Button */}
+           {!loading && !uploadedImageUrl && (
+               <button
+                 type="button"
+                 onClick={handleRemove}
+                 className="absolute top-2 right-2 p-1.5 bg-white/90 hover:bg-red-50 text-gray-600 hover:text-red-600 rounded-full shadow-sm backdrop-blur-sm transition-all transform hover:scale-105"
+                 title="Remove image"
+               >
+                 <X size={18} />
+               </button>
+           )}
+
+           {/* Status Badge (Overlay) */}
+           {uploadedImageUrl && (
+             <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+                <div className="bg-green-500 text-white px-4 py-2 rounded-full flex items-center shadow-lg font-medium text-sm animate-in zoom-in">
+                    <Check size={16} className="mr-2" /> Upload Complete
+                </div>
+             </div>
+           )}
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={!imagePreview || uploadedImageUrl || loading}
-        className={`px-4 py-2 rounded-lg text-white font-medium ${
-          loading
-            ? "bg-green-400 cursor-wait"
-            : uploadedImageUrl
-            ? "bg-green-500 cursor-default"
-            : "bg-green-600 hover:bg-green-700"
-        }`}
-      >
-        {loading ? "Uploading..." : uploadedImageUrl ? "Uploaded" : "Upload"}
-      </button>
+      {/* --- 3. ACTION BUTTON --- */
+       /* Only show button if an image is selected but NOT yet successfully uploaded */
+      }
+      {imagePreview && !uploadedImageUrl && (
+        <button
+            type="submit"
+            disabled={loading}
+            className={`w-full mt-3 flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-medium text-white transition-all shadow-sm ${
+                loading 
+                ? "bg-indigo-400 cursor-wait" 
+                : "bg-indigo-600 hover:bg-indigo-700 hover:shadow-md active:scale-95"
+            }`}
+        >
+            {loading ? (
+                <>
+                    <Loader2 size={16} className="animate-spin mr-2" />
+                    Uploading...
+                </>
+            ) : (
+                <>
+                    <ImageIcon size={16} className="mr-2" />
+                    Confirm & Upload
+                </>
+            )}
+        </button>
+      )}
 
+      {/* Hidden input to store URL for standard form submissions if needed */}
       {uploadedImageUrl && (
         <input type="hidden" name="image_url" value={uploadedImageUrl} />
       )}
