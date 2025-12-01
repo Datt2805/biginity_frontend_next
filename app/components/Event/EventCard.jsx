@@ -4,16 +4,18 @@ import { fetchUserDetail, hostSocket, makeSecureRequest } from "@/lib/api";
 import defaultPlaceholder from "@/public/logo.png";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation"; // 1. Import this
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
-
 export default function EventCard({ id, heading, date, location, img, status }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  useEffect(()=>{
-    fetchUserDetail().then(usr=>setIsLoggedIn(usr));
-  },[])
-  
+  const pathname = usePathname(); // 2. Get current path
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    fetchUserDetail().then((usr) => setIsLoggedIn(usr));
+  }, []);
+
   return (
     <div className="w-full p-3">
       <div className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden group h-full flex flex-col relative">
@@ -56,7 +58,7 @@ export default function EventCard({ id, heading, date, location, img, status }) 
             <p className="text-gray-700 font-medium mt-3">{location}</p>
           </div>
 
-          {isLoggedIn && (
+          {isLoggedIn && !pathname.startsWith("/speaker") && !pathname.startsWith("/admin") && (
             <button
               onClick={() => {
                 makeSecureRequest(`${hostSocket}/api/attendances/${id}`, "POST", {})
@@ -70,7 +72,6 @@ export default function EventCard({ id, heading, date, location, img, status }) 
             </button>
           )}
         </div>
-
       </div>
     </div>
   );

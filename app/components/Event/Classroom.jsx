@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "react-toastify";
 import { useSocket } from "../../../lib/api/initSocket"; 
 // 🆕 UPDATED IMPORTS: Added getClassroomsForSpeaker
-import { getClassrooms, fetchUserDetail, getClassroomsForSpeaker } from "../../../lib/api/app-SDK";
+import { getClassrooms, fetchUserDetail } from "../../../lib/api/app-SDK";
 import Loader from "../Common/Loader";
 import ChatModal from "../Chat/ChatModal";
 
@@ -91,7 +91,7 @@ const Classroom = () => {
         if (user.role === 'Speaker') {
             console.log("👤 User is Speaker: Fetching assigned classrooms...");
             // Use the new function for Speakers (pass null for event)
-            clsData = await getClassroomsForSpeaker(null);
+            clsData = await getClassrooms(null);
         } else {
             console.log("👤 User is Teacher/Student: Fetching all classrooms...");
             // Use the standard function for everyone else

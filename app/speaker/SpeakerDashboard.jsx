@@ -54,8 +54,6 @@ const AdminDashboard = () => {
         return <EventsList />;
       case 'classroom':
         return <Classroom />;
-      default:
-        return <EventsList />; // Always have a fallback
     }
   };
 

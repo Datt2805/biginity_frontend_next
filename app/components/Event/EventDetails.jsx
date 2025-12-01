@@ -16,7 +16,6 @@ export default function EventDetails({ event }) {
 
   useEffect(() => {
     async function initData() {
-      // ... (Your existing logic remains exactly the same) ...
       console.log("--- DEBUG: Starting EventDetails Init ---");
       try {
         const user = await fetchUserDetail();
@@ -24,12 +23,13 @@ export default function EventDetails({ event }) {
         setUserLoggedIn(true);
         setIsAdmin(user.role === "Admin")
 
-        console.log("speakers :", event.speakers);
+        // 1. Check if speakers are already full objects in props
         if (event.speakers && event.speakers.length > 0 && typeof event.speakers[0] === 'object' && event.speakers[0].name) {
           setSpeakerList(event.speakers);
           return;
         }
 
+        // 2. If not, try fetching from all events list to get fresh data
         const allEvents = await getEvents();
         if (allEvents && allEvents.length > 0) {
           const currentId = event._id || event.id;
@@ -40,6 +40,7 @@ export default function EventDetails({ event }) {
           }
         }
 
+        // 3. Last resort: Fetch all speakers and filter by ID
         const allSpeakers = await fetchSpeakersOnly();
         if (event.speakers && event.speakers.length > 0 && allSpeakers.length > 0) {
           const eventSpeakerIds = event.speakers.map(s => String((typeof s === 'object' && s !== null) ? (s._id || s.id) : s));
@@ -56,10 +57,8 @@ export default function EventDetails({ event }) {
   }, [event]);
 
   const formatDate = (d) => d ? new Date(d).toLocaleString() : "N/A";
-  const formatList = (arr) => Array.isArray(arr) ? arr.join(", ") : (arr || "All");
 
-
-  // EDIT EVENT MODAL DATA
+  // --- MODAL STATE ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [eventToEdit, setEventToEdit] = useState(event);
 
@@ -71,7 +70,8 @@ export default function EventDetails({ event }) {
   return (
     <>
       <div className="max-w-5xl mx-auto px-4 py-8 bg-gray-50 min-h-screen">
-        {/* Back Button */}
+        
+        {/* --- NAVIGATION & EDIT BUTTONS --- */}
         <button
           onClick={() => router.back()}
           className="mb-6 inline-flex items-center gap-2 px-4 py-2 bg-white shadow-sm border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
@@ -81,21 +81,20 @@ export default function EventDetails({ event }) {
           </svg>
           Back to Events
         </button>
-        {/*edit button*/}
-        {
-          isAdmin &&
+
+        {isAdmin && (
           <button
             className="mb-6 inline-flex items-center float-right gap-2 px-4 py-2 bg-green-200 shadow-sm border border-gray-200 rounded-lg text-gray-700 hover:bg-green-100 transition-colors"
-            onClick={() => openModal(eventToEdit)}>Open Event Editor</button>
-        }
-        {/* Title */}
+            onClick={() => openModal(eventToEdit)}
+          >
+            Open Event Editor
+          </button>
+        )}
+
+        {/* --- TITLE --- */}
         <h1 className="text-3xl md:text-4xl font-extrabold mb-6 text-gray-900">{event.title}</h1>
 
-        {/* --- UPDATED IMAGE SECTION --- */}
-        {/* 1. 'bg-black/5' adds a light background so if the image is a different aspect ratio, the empty space looks nice.
-         2. 'max-h-[600px]' prevents tall posters from taking up the entire screen.
-         3. 'object-contain' ensures the WHOLE image is seen (no cropping).
-      */}
+        {/* --- IMAGE SECTION --- */}
         <div className="mb-8 w-full bg-black/5 rounded-2xl overflow-hidden shadow-lg border border-gray-200 relative flex justify-center items-center">
           <Image
             src={event?.image ? `${hostSocket}${event.image}` : defaultPlaceholder}
@@ -106,20 +105,18 @@ export default function EventDetails({ event }) {
             className="w-full h-auto max-h-[500px] object-contain"
             priority
           />
-
-          {/* Status Badge */}
           {event.status && (
             <div className="absolute top-4 right-4 bg-black/70 backdrop-blur-md text-white px-3 py-1 rounded-full text-sm font-semibold uppercase tracking-wider shadow-sm">
               {event.status}
             </div>
           )}
         </div>
-        {/* --- END UPDATED IMAGE SECTION --- */}
 
-        {/* Main Info Card */}
+        {/* --- MAIN INFO CARD --- */}
         <div className="bg-white p-6 md:p-8 mb-8 rounded-2xl shadow-sm border border-gray-200">
           <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-2">Event Overview</h2>
 
+          {/* Date and Location Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12">
             <div className="space-y-4">
               <div>
@@ -140,23 +137,51 @@ export default function EventDetails({ event }) {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <h3 className="text-lg font-bold text-gray-800 mb-3">About this Event</h3>
-            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-              {event.description?.detail || event.description || "No specific details provided for this event."}
-            </p>
+          {/* --- DETAILS, OBJECTIVES, LEARNING OUTCOMES --- */}
+          <div className="mt-8 pt-6 border-t border-gray-100 space-y-8">
+            
+            {/* 1. Detail */}
+            <div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">Detail</h3>
+              <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                {event.description?.detail || event.description || "No specific details provided for this event."}
+              </p>
+            </div>
+
+            {/* 2. Objectives */}
+            {(event.objectives || event.description?.objectives) && (
+              <div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Objectives</h3>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {event.objectives || event.description?.objectives}
+                </p>
+              </div>
+            )}
+
+            {/* 3. Learning Outcomes */}
+            {(event.learning_outcomes || event.description?.learning_outcomes) && (
+              <div>
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Learning Outcomes</h3>
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {event.learning_outcomes || event.description?.learning_outcomes}
+                </p>
+              </div>
+            )}
+
           </div>
         </div>
 
-        {/* Speakers Section */}
+        {/* --- SPEAKERS SECTION --- */}
         <div>
           <h2 className="text-2xl font-bold mb-6 text-gray-900">Featured Speakers</h2>
+          
           {userLoggedIn === null && (
             <div className="p-12 text-center bg-white rounded-2xl shadow-sm border border-gray-200 animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-1/4 mx-auto mb-4"></div>
               <p className="text-gray-500">Verifying access...</p>
             </div>
           )}
+
           {userLoggedIn === false && (
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-8 rounded-2xl shadow-sm text-center border border-blue-100">
               <h3 className="text-xl font-bold text-gray-800 mb-2">Speaker details are protected</h3>
@@ -169,6 +194,7 @@ export default function EventDetails({ event }) {
               </button>
             </div>
           )}
+
           {userLoggedIn === true && (
             <>
               {speakerList.length === 0 ? (
@@ -197,7 +223,10 @@ export default function EventDetails({ event }) {
             </>
           )}
         </div>
+
       </div>
+
+      {/* --- UPDATE MODAL --- */}
       <UpdateEventModal
         existingEvent={eventToEdit}
         isOpen={isModalOpen}
