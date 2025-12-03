@@ -1,4 +1,4 @@
-import AdminPage from '@/app/admin/AdminDashboard';
+import AdminPage from '@/app/components/AdminDashboard/AdminDashboard';
 // Set up metadata if needed
 export const metadata = {
   title: 'Admin Page',

@@ -13,7 +13,7 @@ import {
 
 // --- IMPORTS ---
 import EventsList from "../components/Event/EventsList";
-import Classroom from "../components/Event/Classroom";
+import Classroom from "../components/Classroom/Classroom";
 import UserProfile from "../components/Common/UserProfile"; 
 import { logOutUser, fetchUserDetail } from "../../lib/api"; 
 

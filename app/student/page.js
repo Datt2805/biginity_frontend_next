@@ -1,6 +1,6 @@
 // app/teacher/page.jsx
 import React from 'react';
-import StudentDashboard from '../components/Student/StudentDashboard';
+import StudentDashboard from '../components/StudentDashboard/StudentDashboard';
 
 // Set up metadata if needed
 export const metadata = {

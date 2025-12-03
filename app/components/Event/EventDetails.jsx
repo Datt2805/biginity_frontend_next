@@ -5,7 +5,7 @@ import defaultPlaceholder from "@/public/logo.png";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import UpdateEventModal from "./UpdateEvent";
+import UpdateEventModal from "../AdminAccess/UpdateEvent";
 
 export default function EventDetails({ event }) {
 

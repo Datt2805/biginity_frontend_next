@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import { useSocket } from "../../../lib/api/initSocket"; 
 import { getClassrooms, fetchUserDetail } from "../../../lib/api/app-SDK";
 import Loader from "../Common/Loader"; 
-import ChatModal from "../Chat/ChatModal";
+import ChatModal from "../Common/ChatModal";
 
 const Classroom = () => {
   const socket = useSocket();
