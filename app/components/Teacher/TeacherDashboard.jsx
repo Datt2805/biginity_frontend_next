@@ -21,7 +21,7 @@ import Classroom from '../Event/Classroom';
 import EventsList from '../Event/EventsList';
 import CreateEvent from '../Event/CreateEvent';
 import CreateSpeaker from '../Event/CreateSpeaker';
-import ChartsPage from '../Event/charts'; 
+import ChartsPage from '../Event/AnalyticsDashboard'; 
 import UserProfile from '../Common/UserProfile';
 import { logOutUser, fetchUserDetail } from '../../../lib/api';
 

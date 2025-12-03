@@ -4,26 +4,64 @@ import { fetchUserDetail, hostSocket, makeSecureRequest } from "@/lib/api";
 import defaultPlaceholder from "@/public/logo.png";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
 export default function EventCard({ id, heading, date, location, img, status }) {
-  const pathname = usePathname();
-  const [user, setUser] = useState(null); // 1. Changed to store the full user object
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // 2. Fetch user and store the data
-    fetchUserDetail().then((usr) => setUser(usr));
+    let isMounted = true;
+    fetchUserDetail()
+      .then((usr) => {
+        if (isMounted) setUser(usr);
+      })
+      .catch((err) => {
+        console.error(err);
+        setUser(null);
+      });
+      
+    return () => { isMounted = false; };
   }, []);
 
-  // Helper to determine status color styles
+  // --- ROLE CHECKS ---
+  const role = user?.role?.toLowerCase(); 
+  const isStudent = role === "student";
+  const isAdmin = role === "admin";
+
+  const isNotEnded = status !== "Ended";
+  
+  const showEnrollButton = user && isStudent && isNotEnded;
+  const showDeleteButton = user && isAdmin; 
+
   const getStatusStyles = (s) => {
     switch (s) {
       case "Ended": return "bg-slate-100 text-slate-600 border-slate-200";
       case "Ongoing": return "bg-emerald-50 text-emerald-700 border-emerald-200 ring-1 ring-emerald-500/20";
       case "Upcoming": return "bg-indigo-50 text-indigo-700 border-indigo-200 ring-1 ring-indigo-500/20";
       default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const handleEnroll = async () => {
+    try {
+      const data = await makeSecureRequest(`${hostSocket}/api/attendances/${id}`, "POST", {});
+      toast.success(data.message);
+    } catch (err) {
+      toast.error(err.message || "Failed to enroll");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
+      return;
+    }
+    try {
+      const data = await makeSecureRequest(`${hostSocket}/api/events/${id}`, "DELETE", {});
+      toast.success(data.message || "Event deleted successfully");
+      window.location.reload(); 
+    } catch (err) {
+      toast.error(err.message || "Failed to delete event");
     }
   };
 
@@ -40,62 +78,68 @@ export default function EventCard({ id, heading, date, location, img, status }) 
           </div>
         )}
 
-        {/* IMAGE SECTION */}
+        {/* IMAGE */}
         <Link href={`/events/detail?id=${id}`} className="block overflow-hidden relative">
           <div className="relative w-full aspect-[4/3] bg-slate-100">
             <Image
               src={img || defaultPlaceholder}
-              alt={heading}
+              alt={heading || "Event Image"}
               fill
-              className={`object-cover transition-transform duration-500 group-hover:scale-105
-                ${status === "Ended" ? "opacity-60 grayscale filter" : ""}
-              `}
+              className={`object-cover transition-transform duration-500 group-hover:scale-105 ${status === "Ended" ? "opacity-60 grayscale" : ""}`}
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-900/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
         </Link>
 
-        {/* CONTENT SECTION */}
+        {/* CONTENT */}
         <div className="flex flex-col flex-grow p-5">
           
-          {/* Date Tag */}
+          {/* --- DATE SECTION UPDATED --- */}
           <div className="flex items-center gap-2 mb-2">
              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-50 text-slate-600 text-xs font-semibold border border-slate-100">
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
-                {date?.year !== "N/A" ? `${date.month}/${date.year}` : "TBA"}
+                <span>📅</span>
+                {date?.year && date.year !== "N/A" 
+                  ? `${date.day || date.date || "01"}/${date.month}/${date.year}` 
+                  : "TBA"}
              </div>
           </div>
 
-          {/* Heading */}
           <Link href={`/events/detail?id=${id}`} className="block">
             <h3 className="text-lg font-bold text-slate-800 leading-snug mb-3 line-clamp-2 group-hover:text-indigo-600 transition-colors">
               {heading}
             </h3>
           </Link>
 
-          {/* Location */}
           <div className="mt-auto flex items-start gap-2 text-slate-500 text-sm">
-            <svg className="w-4 h-4 mt-0.5 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <span>📍</span>
             <span className="line-clamp-1 font-medium">{location || "Location TBD"}</span>
           </div>
 
-          {/* Action Button - 3. Condition updated to check strict role */}
-          {user && user.role === "student" && (
-            <div className="mt-5 pt-4 border-t border-slate-100">
+          {/* ACTION BUTTONS AREA */}
+          <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-3">
+            
+            {/* STUDENT: ENROLL BUTTON */}
+            {showEnrollButton && (
                 <button
-                onClick={() => {
-                    makeSecureRequest(`${hostSocket}/api/attendances/${id}`, "POST", {})
-                    .then((data) => toast.success(data.message))
-                    .catch((err) => toast.error(err.message));
-                }}
-                className="w-full inline-flex justify-center items-center gap-2 bg-indigo-600 text-white py-2.5 px-4 rounded-xl text-sm font-semibold shadow-sm hover:bg-indigo-700 hover:shadow-md active:transform active:scale-95 transition-all focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                onClick={handleEnroll}
+                className="w-full inline-flex justify-center items-center gap-2 bg-indigo-600 text-white py-2.5 px-4 rounded-xl text-sm font-semibold shadow-sm hover:bg-indigo-700 hover:shadow-md active:transform active:scale-95 transition-all"
                 >
                 <span>Enroll Now</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                 </button>
-            </div>
-          )}
+            )}
+
+            {/* ADMIN: DELETE BUTTON */}
+            {showDeleteButton && (
+                <button
+                onClick={handleDelete}
+                className="w-full inline-flex justify-center items-center gap-2 bg-red-50 text-red-600 border border-red-200 py-2.5 px-4 rounded-xl text-sm font-semibold shadow-sm hover:bg-red-600 hover:text-white hover:border-red-600 transition-all active:transform active:scale-95"
+                >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                <span>Delete Event</span>
+                </button>
+            )}
+          </div>
+
         </div>
       </div>
     </div>

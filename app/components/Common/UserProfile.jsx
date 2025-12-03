@@ -6,7 +6,12 @@ import {
   Shield, 
   CheckCircle2, 
   PieChart, 
-  Loader2 
+  Loader2,
+  GraduationCap, // New import
+  Building2,     // New import
+  Hash,          // New import
+  Calendar,      // New import
+  BookOpen       // New import
 } from "lucide-react";
 import { fetchUserDetail, getAllAttendances } from "../../../lib/api"; 
 
@@ -28,7 +33,6 @@ const UserProfile = () => {
         setUserData(user);
 
         // 2. If User exists and is a Student, fetch Attendance
-        // Helper check for role inside effect to decide whether to fetch
         const role = user.role || user.userType || "Student";
         
         if (user && (user._id || user.id) && role.toLowerCase() === 'student') {
@@ -150,7 +154,80 @@ const UserProfile = () => {
         </div>
       </div>
 
-      {/* 2. Attendance Analytics Section - ONLY VISIBLE TO STUDENT */}
+      {/* 2. ACADEMIC DETAILS - ONLY VISIBLE TO STUDENT */}
+      {isStudent && (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className="flex items-center gap-2 mb-6">
+             <GraduationCap className="h-5 w-5 text-indigo-600" />
+             <h3 className="text-lg font-bold text-slate-800">Academic Information</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            {/* Enrollment ID */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3">
+               <div className="p-2 bg-white rounded-lg shadow-sm">
+                 <Hash className="h-4 w-4 text-slate-500" />
+               </div>
+               <div>
+                 <p className="text-xs text-slate-500 mb-0.5">Enrollment ID</p>
+                 <p className="text-sm font-semibold text-slate-700">{userData.enrollment_id || "N/A"}</p>
+               </div>
+            </div>
+
+            {/* School */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3">
+               <div className="p-2 bg-white rounded-lg shadow-sm">
+                 <Building2 className="h-4 w-4 text-indigo-500" />
+               </div>
+               <div>
+                 <p className="text-xs text-slate-500 mb-0.5">School</p>
+                 <p className="text-sm font-semibold text-slate-700 line-clamp-1" title={userData.school}>
+                    {userData.school || "N/A"}
+                 </p>
+               </div>
+            </div>
+
+             {/* Branch */}
+             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3">
+               <div className="p-2 bg-white rounded-lg shadow-sm">
+                 <BookOpen className="h-4 w-4 text-pink-500" />
+               </div>
+               <div>
+                 <p className="text-xs text-slate-500 mb-0.5">Branch / Stream</p>
+                 <p className="text-sm font-semibold text-slate-700">
+                    {userData.branch} {userData.stream ? `(${userData.stream})` : ''}
+                 </p>
+               </div>
+            </div>
+
+            {/* Year / Batch */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3">
+               <div className="p-2 bg-white rounded-lg shadow-sm">
+                 <Calendar className="h-4 w-4 text-orange-500" />
+               </div>
+               <div>
+                 <p className="text-xs text-slate-500 mb-0.5">Batch Year</p>
+                 <p className="text-sm font-semibold text-slate-700">{userData.year || "N/A"}</p>
+               </div>
+            </div>
+
+            {/* Gender */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-3">
+               <div className="p-2 bg-white rounded-lg shadow-sm">
+                 <User className="h-4 w-4 text-blue-500" />
+               </div>
+               <div>
+                 <p className="text-xs text-slate-500 mb-0.5">Gender</p>
+                 <p className="text-sm font-semibold text-slate-700 capitalize">{userData.gender || "N/A"}</p>
+               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 3. Attendance Analytics Section - ONLY VISIBLE TO STUDENT */}
       {isStudent && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
           <div className="flex items-center gap-2 mb-6">

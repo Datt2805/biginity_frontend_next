@@ -19,7 +19,7 @@ import {
   Send
 } from "lucide-react";
 
-// ✅ Client-only ImageUploader
+// Client-only ImageUploader
 const ImageUploader = dynamic(() => import("../Common/ImageUploader.jsx"), { ssr: false });
 
 // --- STYLED COMPONENTS ( consistent with your other pages ) ---
