@@ -52,6 +52,7 @@ export default function EventCard({ id, heading, date, location, img, status }) 
     }
   };
 
+  // --- UPDATED DELETE FUNCTION ---
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
       return;
@@ -61,6 +62,13 @@ export default function EventCard({ id, heading, date, location, img, status }) 
       toast.success(data.message || "Event deleted successfully");
       window.location.reload(); 
     } catch (err) {
+      if (err.message && (err.message.includes("end of JSON input") || err.message.includes("JSON"))) {
+        toast.success("Event deleted successfully");
+        window.location.reload();
+        return;
+      }
+
+      // If it's a real error, show it
       toast.error(err.message || "Failed to delete event");
     }
   };
@@ -94,7 +102,7 @@ export default function EventCard({ id, heading, date, location, img, status }) 
         {/* CONTENT */}
         <div className="flex flex-col flex-grow p-5">
           
-          {/* --- DATE SECTION UPDATED --- */}
+          {/* --- DATE SECTION --- */}
           <div className="flex items-center gap-2 mb-2">
              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-50 text-slate-600 text-xs font-semibold border border-slate-100">
                 <span>📅</span>

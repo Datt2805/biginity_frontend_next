@@ -3,10 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import EventsList from '../components/Event/EventsList';
+import EventsList from '../Event/EventsList';
 import { logOutUser } from '@/lib/api';
 // import ChartsPage from '../components/Event/Classroom'; // Kept commented as per original
-import VerificationPage from './VerificationPage';
+import VerificationPage from '../VerificationPage/VerificationPage';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('events'); // Note: logic says 'events' is default, but tabs array below uses 'update-event'. syncing logic below.
