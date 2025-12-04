@@ -9,8 +9,8 @@ import SignInForm from "./SignInForm";
 
 import { registerUser, logInUser, verifyEmail } from "@/lib/api/index";
 
-const UserForm = ({ defaultType = "register" }) => {
-  const [isSignUp, setIsSignUp] = useState(defaultType === "register");
+const UserForm = ({ defaultType = "login" }) => {
+  const [isSignUp, setIsSignUp] = useState(defaultType === "login");
   const [formData, setFormData] = useState({
     name: "",
     nickname: "",
