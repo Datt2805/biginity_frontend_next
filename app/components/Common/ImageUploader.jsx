@@ -2,7 +2,8 @@
 import React, { useState } from "react";
 import PropTypes from "prop-types";
 import { toast } from "react-toastify";
-import { uploadFile } from "../../../lib/api/app-SDK"; // Adjust path as needed
+// Make sure this path is correct for your SDK file
+import { uploadFile } from "../../../lib/api/app-SDK"; 
 import { 
   UploadCloud, 
   X, 
@@ -43,7 +44,6 @@ const ImageUploader = ({ onUploadSuccess }) => {
       return;
     }
     setLoading(true);
-    // Logic preserved exactly for SDK compatibility
     uploadFile.handler(successCallback, errorCallback)(e);
   };
 
@@ -54,6 +54,10 @@ const ImageUploader = ({ onUploadSuccess }) => {
     setImagePreview(null);
     setUploadedImageUrl("");
     onUploadSuccess("");
+    
+    // Optional: clear the file input value so selecting the same file works again
+    const fileInput = document.getElementById("eventImage");
+    if(fileInput) fileInput.value = "";
   };
 
   return (
@@ -61,6 +65,17 @@ const ImageUploader = ({ onUploadSuccess }) => {
       onSubmit={handleUploadSubmit}
       className="w-full"
     >
+      {/* ✅ FIX: INPUT MOVED HERE (Always in DOM, always hidden) */}
+      <input
+        type="file"
+        id="eventImage"
+        name="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        disabled={loading}
+        className="hidden"
+      />
+
       {!imagePreview ? (
         /* --- 1. EMPTY STATE (Upload Trigger) --- */
         <label
@@ -76,15 +91,7 @@ const ImageUploader = ({ onUploadSuccess }) => {
             </p>
             <p className="text-xs text-gray-500">SVG, PNG, JPG or GIF</p>
           </div>
-          <input
-            type="file"
-            id="eventImage"
-            name="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            disabled={loading}
-            className="hidden"
-          />
+          {/* Input removed from here */}
         </label>
       ) : (
         /* --- 2. PREVIEW STATE --- */
@@ -96,7 +103,7 @@ const ImageUploader = ({ onUploadSuccess }) => {
              className="w-full h-full object-cover"
            />
            
-           {/* Overlay Gradient (for text readability) */}
+           {/* Overlay Gradient */}
            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
 
            {/* Remove Button */}
@@ -111,7 +118,7 @@ const ImageUploader = ({ onUploadSuccess }) => {
                </button>
            )}
 
-           {/* Status Badge (Overlay) */}
+           {/* Status Badge */}
            {uploadedImageUrl && (
              <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
                 <div className="bg-green-500 text-white px-4 py-2 rounded-full flex items-center shadow-lg font-medium text-sm animate-in zoom-in">
@@ -122,9 +129,7 @@ const ImageUploader = ({ onUploadSuccess }) => {
         </div>
       )}
 
-      {/* --- 3. ACTION BUTTON --- */
-       /* Only show button if an image is selected but NOT yet successfully uploaded */
-      }
+      {/* --- 3. ACTION BUTTON --- */ }
       {imagePreview && !uploadedImageUrl && (
         <button
             type="submit"
@@ -149,7 +154,7 @@ const ImageUploader = ({ onUploadSuccess }) => {
         </button>
       )}
 
-      {/* Hidden input to store URL for standard form submissions if needed */}
+      {/* Hidden input to store URL for parent form */}
       {uploadedImageUrl && (
         <input type="hidden" name="image_url" value={uploadedImageUrl} />
       )}
