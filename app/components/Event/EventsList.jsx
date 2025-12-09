@@ -183,6 +183,7 @@ export default function EventsList() {
               id={event._id || event.id}
               heading={event.title}
               date={{ year, month }}
+              startTime={event.start_time}
               location={event?.location?.address || "Unknown"}
               img={event?.image ? `${hostSocket}${event.image}` : undefined}
               status={status}

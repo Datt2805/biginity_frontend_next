@@ -20,6 +20,14 @@ const SignInForm = ({ formData, handleChange }) => {
         className={baseInputClass}
       />
 
+      <div className="relative flex py-1 items-center">
+        <div className="flex-grow border-t border-gray-200"></div>
+        <span className="flex-shrink-0 mx-4 text-gray-400 text-sm font-medium">
+          OR
+        </span>
+        <div className="flex-grow border-t border-gray-200"></div>
+      </div>
+
       <FormInput
         type="email"
         name="email"

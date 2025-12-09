@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 
-export default function EventCard({ id, heading, date, location, img, status }) {
+export default function EventCard({ id, heading, date, location, img, status, startTime }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
@@ -24,11 +24,9 @@ export default function EventCard({ id, heading, date, location, img, status }) 
     return () => { isMounted = false; };
   }, []);
 
-  // --- ROLE CHECKS ---
   const role = user?.role?.toLowerCase(); 
   const isStudent = role === "student";
   const isAdmin = role === "admin";
-
   const isNotEnded = status !== "Ended";
   
   const showEnrollButton = user && isStudent && isNotEnded;
@@ -43,6 +41,27 @@ export default function EventCard({ id, heading, date, location, img, status }) 
     }
   };
 
+  // --- NEW FORMATTING FUNCTION ---
+  const formatDateTime = (d) => {
+    if (!d) return null;
+    const dateObj = new Date(d);
+    
+    // 1. Get Day, Month, Year
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const year = dateObj.getFullYear();
+    
+    // 2. Get Time (HH:MM AM/PM)
+    const time = dateObj.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true // Set to false if you want 24-hour format (13:00)
+    });
+
+    // 3. Return combined string: "02/01/2026, 11:00 AM"
+    return `${day}/${month}/${year}, ${time}`;
+  };
+
   const handleEnroll = async () => {
     try {
       const data = await makeSecureRequest(`${hostSocket}/api/attendances/${id}`, "POST", {});
@@ -52,7 +71,6 @@ export default function EventCard({ id, heading, date, location, img, status }) 
     }
   };
 
-  // --- UPDATED DELETE FUNCTION ---
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this event? This action cannot be undone.")) {
       return;
@@ -67,11 +85,14 @@ export default function EventCard({ id, heading, date, location, img, status }) 
         window.location.reload();
         return;
       }
-
-      // If it's a real error, show it
       toast.error(err.message || "Failed to delete event");
     }
   };
+
+  // Prepare display date
+  const displayDate = startTime 
+    ? formatDateTime(startTime) 
+    : (date?.year && date.year !== "N/A" ? `${date.day || date.date || "01"}/${date.month}/${date.year}` : "TBA");
 
   return (
     <div className="w-full p-3">
@@ -102,13 +123,11 @@ export default function EventCard({ id, heading, date, location, img, status }) 
         {/* CONTENT */}
         <div className="flex flex-col flex-grow p-5">
           
-          {/* --- DATE SECTION --- */}
-          <div className="flex items-center gap-2 mb-2">
-             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-50 text-slate-600 text-xs font-semibold border border-slate-100">
-                <span>📅</span>
-                {date?.year && date.year !== "N/A" 
-                  ? `${date.day || date.date || "01"}/${date.month}/${date.year}` 
-                  : "TBA"}
+          {/* --- DATE & TIME BADGE --- */}
+          <div className="flex items-center gap-2 mb-3">
+             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-md bg-slate-50 text-slate-700 text-xs font-bold border border-slate-100 shadow-sm">
+                <span className="text-sm">📅</span>
+                <span>{displayDate}</span>
              </div>
           </div>
 
@@ -126,7 +145,6 @@ export default function EventCard({ id, heading, date, location, img, status }) 
           {/* ACTION BUTTONS AREA */}
           <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col gap-3">
             
-            {/* STUDENT: ENROLL BUTTON */}
             {showEnrollButton && (
                 <button
                 onClick={handleEnroll}
@@ -136,7 +154,6 @@ export default function EventCard({ id, heading, date, location, img, status }) 
                 </button>
             )}
 
-            {/* ADMIN: DELETE BUTTON */}
             {showDeleteButton && (
                 <button
                 onClick={handleDelete}
